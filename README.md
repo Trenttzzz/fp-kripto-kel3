@@ -3,8 +3,20 @@
 A secure web-based application that demonstrates file integrity verification using HMAC-SHA256. This project allows users to upload text files, generate HMAC signatures, and verify file authenticity—showcasing real-world cryptographic security practices.
 
 **Final Project - Sistem Keamanan Kriptografi**  
-**Kelompok 3 - Institut Teknologi Sepuluh Nopember**  
+**Kelompok 3 - Institut Teknologi Sepuluh Nopember**
 **Tahun Akademik 2025**
+
+| Nama                | NRP        |
+|---------------------|------------|
+| Hazwan Adhikara     | 5027231017 |
+| Rafael Gunawan      | 5027231019 |
+| Gallant Damas H     | 5027231037 |
+| Dani Wahyu          | 5027231038 |
+| Tio Axellino        | 5027231065 |
+| Azza Farichi        | 5027231071 |
+| Nabiel Nizar Anwari | 5027231087 |
+| Veri Rahman         | 5027231088 |
+
 
 ---
 
