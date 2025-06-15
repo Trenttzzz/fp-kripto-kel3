@@ -1,0 +1,17 @@
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info
+*.dist-info
+*.whl
+hmac_store.json
+*.log
+*.sqlite3
+*.db
+*.db-journal
+*.csv
+.fp-kripto
+uploads/

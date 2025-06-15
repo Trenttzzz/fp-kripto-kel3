@@ -1,0 +1,15 @@
+Hello, World!
+
+This is a sample text file for testing the HMAC File Uploader and Verifier system.
+
+Features to test:
+1. Upload this file with a secret key
+2. Download the file and verify its integrity
+3. Try tampering with the file to see HMAC verification fail
+4. Use the CLI tool to verify files locally
+
+This demonstrates how HMAC-SHA256 can ensure data integrity and authenticity.
+
+Created for: Final Project - Sistem Keamanan Kriptografi
+Team: Kelompok 3 - Institut Teknologi Sepuluh Nopember
+Year: 2025

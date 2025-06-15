@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔒 HMAC File Uploader & Verifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .toast {
+            transition: all 0.3s ease-in-out;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="font-sans">
+    <!-- Header -->
+    <div class="container mx-auto px-4 py-6">
+        <div class="text-center text-white mb-8">
+            <h1 class="text-4xl font-bold mb-2">🔒 HMAC File Uploader & Verifier</h1>
+            <p class="text-xl opacity-90">Secure file upload with HMAC-SHA256 integrity protection</p>
+            <p class="text-sm opacity-75 mt-2">Final Project - Sistem Keamanan Kriptografi | Kelompok 3 - ITS</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Left Column: Upload & Verify -->
+            <div class="space-y-6">
+                
+                <!-- File Upload Section -->
+                <div class="glass rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <i data-lucide="upload" class="w-6 h-6 text-blue-600"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Upload File</h2>
+                    </div>
+                    
+                    <form id="uploadForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Select .txt file
+                            </label>
+                            <input type="file" id="fileInput" accept=".txt" 
+                                   class="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 transition-colors focus:outline-none focus:border-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Secret Key
+                            </label>
+                            <input type="password" id="secretKey" placeholder="Enter your secret key"
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        
+                        <button type="submit" 
+                                class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                            Upload & Generate HMAC
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Quick Integrity Check Section -->
+                <div class="glass rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <i data-lucide="zap" class="w-6 h-6 text-yellow-600"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Quick Integrity Check</h2>
+                        <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium">AUTO</span>
+                    </div>
+                    
+                    <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            <i data-lucide="lightbulb" class="w-4 h-4 inline mr-1"></i>
+                            Upload a file you previously downloaded from this app. We'll automatically check its integrity!
+                        </p>
+                    </div>
+                    
+                    <form id="quickVerifyForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Select downloaded file
+                            </label>
+                            <input type="file" id="quickVerifyFileInput" accept=".txt"
+                                   class="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-yellow-400 transition-colors focus:outline-none focus:border-yellow-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Secret Key
+                            </label>
+                            <input type="password" id="quickVerifySecretKey" placeholder="Enter the secret key"
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent">
+                        </div>
+                        
+                        <button type="submit"
+                                class="w-full bg-yellow-600 text-white py-3 rounded-lg hover:bg-yellow-700 transition-colors font-medium flex items-center justify-center gap-2">
+                            <i data-lucide="zap" class="w-4 h-4"></i>
+                            Quick Integrity Check
+                        </button>
+                    </form>
+                </div>
+
+                <!-- File Verification Section -->
+                <div class="glass rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-green-600"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Manual Verify File Integrity</h2>
+                    </div>
+                    
+                    <form id="verifyForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Select file to verify
+                            </label>
+                            <input type="file" id="verifyFileInput" accept=".txt"
+                                   class="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 transition-colors focus:outline-none focus:border-green-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Secret Key
+                            </label>
+                            <input type="password" id="verifySecretKey" placeholder="Enter the secret key"
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Expected HMAC
+                            </label>
+                            <input type="text" id="expectedHmac" placeholder="Enter the expected HMAC value"
+                                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm">
+                        </div>
+                        
+                        <button type="submit"
+                                class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i>
+                            Verify File Integrity
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: File List -->
+            <div class="space-y-6">
+                
+                <!-- Uploaded Files Section -->
+                <div class="glass rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="file-text" class="w-6 h-6 text-purple-600"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Uploaded Files</h2>
+                        </div>
+                        <button id="refreshFiles" 
+                                class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            Refresh
+                        </button>
+                    </div>
+                    
+                    <div id="filesList" class="space-y-3">
+                        <!-- Files will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- HMAC Information -->
+                <div class="glass rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i data-lucide="info" class="w-6 h-6 text-indigo-600"></i>
+                        <h3 class="text-xl font-bold text-gray-800">About HMAC</h3>
+                    </div>
+                    
+                    <div class="text-sm text-gray-700 space-y-2">
+                        <p><strong>HMAC (Hash-based Message Authentication Code)</strong> ensures both data integrity and authenticity.</p>
+                        <p>🔑 Uses SHA-256 with your secret key</p>
+                        <p>🛡️ Detects any file modifications</p>
+                        <p>⚡ Constant-time comparison prevents timing attacks</p>
+                        <p>📁 Only .txt files are supported</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 space-y-2 z-50">
+        <!-- Toasts will be added here -->
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 flex items-center gap-3">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span class="text-gray-700">Processing...</span>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
