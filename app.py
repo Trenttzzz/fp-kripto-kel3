@@ -14,6 +14,7 @@ CORS(app)
 UPLOAD_FOLDER = 'uploads'
 HMAC_STORE_FILE = 'hmac_store.json'
 ALLOWED_EXTENSIONS = {'txt'}
+PORT = 5002
 
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -415,5 +416,5 @@ if __name__ == '__main__':
     print("🚀 HMAC File Uploader Server Starting...")
     print("📁 Upload folder:", UPLOAD_FOLDER)
     print("🔒 HMAC store file:", HMAC_STORE_FILE)
-    print("🌐 Server will be available at: http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    print(f"🌐 Server will be available at: http://localhost:{PORT}")
+    app.run(debug=True, host='0.0.0.0', port=PORT)
