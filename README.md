@@ -3,7 +3,8 @@
 Aplikasi web yang aman untuk mendemonstrasikan verifikasi integritas file menggunakan HMAC-SHA256. Proyek ini memungkinkan pengguna untuk mengunggah file teks, menghasilkan tanda tangan HMAC, dan memverifikasi keaslian file—menunjukkan praktik keamanan kriptografi dunia nyata.
 
 **Final Project - Kriptografi**  
-**Kelompok 3 - Institut Teknologi Sepuluh Nopember**  
+**Kelompok 3 - Institut Teknologi Sepuluh Nopember**
+**Kelas Kriptografi B**
 **Tahun Akademik 2025**
 
 | Nama                | NRP        |
