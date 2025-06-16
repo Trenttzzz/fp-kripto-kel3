@@ -2,7 +2,7 @@
 
 Berikut adalah pembagian tugas untuk proyek **HMAC File Uploader & Verifier** dari Kelompok 3.
 
-## 🔧 Tim Backend (3 orang)
+## 🔧 Tim Backend
 
 1.  **Hazwan Adhikara (5027231017) - Backend Core API**
 
@@ -30,7 +30,7 @@ Berikut adalah pembagian tugas untuk proyek **HMAC File Uploader & Verifier** da
     > - Penamaan file menggunakan UUID dan `secure_filename`.
     > - Mekanisme backup dan pembersihan.
 
-## 🎨 Tim Frontend (2 orang)
+## 🎨 Tim Frontend
 
 4.  **Gallant Damas H (5027231037) - Frontend UI Design**
 
@@ -51,7 +51,7 @@ Berikut adalah pembagian tugas untuk proyek **HMAC File Uploader & Verifier** da
     > - Notifikasi toast dan umpan balik untuk pengguna.
     > - Interaksi manajemen file (download, hapus, salin).
 
-## 🔐 Tim Cryptography & Logic (2 orang)
+## 🔐 Tim Cryptography & Logic
 
 6.  **Tio Axellino (5027231065) - HMAC Implementation**
 
@@ -70,7 +70,7 @@ Berikut adalah pembagian tugas untuk proyek **HMAC File Uploader & Verifier** da
     > - Deteksi file serupa berdasarkan ukuran dan karakteristik.
     > - Logika untuk membedakan antara file yang diganti nama vs. dimodifikasi.
 
-## 📚 Documentation & Testing (1 orang)
+## 📚 Documentation & Testing
 
 8.  **Veri Rahman (5027231088) - Documentation & Integration**
     > **Fokus pada:** `README.md` dan proyek secara keseluruhan
