@@ -4,6 +4,7 @@ const verifyForm = document.getElementById('verifyForm');
 const quickVerifyForm = document.getElementById('quickVerifyForm');
 const filesList = document.getElementById('filesList');
 const refreshFiles = document.getElementById('refreshFiles');
+const resetAllFiles = document.getElementById('resetAllFiles');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const toastContainer = document.getElementById('toastContainer');
 
@@ -22,6 +23,7 @@ function setupEventListeners() {
     verifyForm.addEventListener('submit', handleFileVerification);
     quickVerifyForm.addEventListener('submit', handleQuickVerification);
     refreshFiles.addEventListener('click', loadFiles);
+    resetAllFiles.addEventListener('click', handleResetAllFiles);
 }
 
 // Show loading overlay
@@ -221,7 +223,7 @@ async function handleQuickVerification(event) {
                 showToast(message, result.is_valid ? 'success' : 'error');
                 showQuickVerificationResult(result);
             } else {
-                showToast('🔍 No stored version found. This might be a new file.', 'info');
+                showToast('🔍 No stored version found. This might be a new file.'),
                 showQuickVerificationResult(result);
             }
         } else {
@@ -434,7 +436,7 @@ function displayFiles(files) {
                     </button>
                     
                     <button onclick="simulateTamper('${file.filename}')" 
-                            class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors flex items-center gap-1">
+                            class="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700 transition-colors flex items-center gap-1">
                         <i data-lucide="alert-triangle" class="w-3 h-3"></i>
                         Tamper
                     </button>
@@ -443,6 +445,12 @@ function displayFiles(files) {
                             class="bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-700 transition-colors flex items-center gap-1">
                         <i data-lucide="copy" class="w-3 h-3"></i>
                         Copy
+                    </button>
+                    
+                    <button onclick="handleDeleteFile('${file.filename}', '${file.original_filename}')" 
+                            class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        Delete
                     </button>
                 </div>
             </div>
@@ -600,3 +608,158 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Handle delete individual file
+async function handleDeleteFile(filename, originalFilename) {
+    // Show confirmation dialog
+    const confirmed = await showConfirmDialog(
+        'Delete File',
+        `Are you sure you want to delete "${originalFilename}"?`,
+        'This action cannot be undone.',
+        'Delete',
+        'danger'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`${API_BASE}/delete/${filename}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(result.message, 'success');
+            loadFiles(); // Refresh file list
+        } else {
+            showToast(result.error || 'Delete failed', 'error');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Delete failed: Network error', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Handle reset all files
+async function handleResetAllFiles() {
+    // Show confirmation dialog
+    const confirmed = await showConfirmDialog(
+        'Reset All Files',
+        'Are you sure you want to delete ALL uploaded files?',
+        'This will permanently delete all files and reset the HMAC store. This action cannot be undone.',
+        'Reset All',
+        'danger'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`${API_BASE}/reset-all`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(result.message, 'success');
+            loadFiles(); // Refresh file list
+        } else {
+            showToast(result.error || 'Reset failed', 'error');
+        }
+    } catch (error) {
+        console.error('Reset error:', error);
+        showToast('Reset failed: Network error', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Show confirmation dialog
+function showConfirmDialog(title, message, detail, confirmText, type = 'warning') {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        
+        const typeColors = {
+            'danger': {
+                icon: 'alert-triangle',
+                iconColor: 'text-red-600',
+                buttonColor: 'bg-red-600 hover:bg-red-700',
+                borderColor: 'border-red-200'
+            },
+            'warning': {
+                icon: 'alert-triangle',
+                iconColor: 'text-yellow-600',
+                buttonColor: 'bg-yellow-600 hover:bg-yellow-700',
+                borderColor: 'border-yellow-200'
+            }
+        };
+        
+        const config = typeColors[type] || typeColors.warning;
+        
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+                <div class="flex items-center gap-3 mb-4">
+                    <i data-lucide="${config.icon}" class="w-8 h-8 ${config.iconColor}"></i>
+                    <h3 class="text-xl font-bold text-gray-800">${title}</h3>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-gray-700 font-medium mb-2">${message}</p>
+                    <p class="text-sm text-gray-600">${detail}</p>
+                </div>
+                
+                <div class="flex gap-3 justify-end">
+                    <button id="cancelBtn" 
+                            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button id="confirmBtn" 
+                            class="px-4 py-2 ${config.buttonColor} text-white rounded-lg transition-colors">
+                        ${confirmText}
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        lucide.createIcons();
+        
+        const cancelBtn = modal.querySelector('#cancelBtn');
+        const confirmBtn = modal.querySelector('#confirmBtn');
+        
+        cancelBtn.addEventListener('click', () => {
+            modal.remove();
+            resolve(false);
+        });
+        
+        confirmBtn.addEventListener('click', () => {
+            modal.remove();
+            resolve(true);
+        });
+        
+        // Close on escape
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+                resolve(false);
+            }
+        });
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+                resolve(false);
+            }
+        });
+    });
+}

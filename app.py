@@ -343,6 +343,74 @@ def quick_verify_file():
         return jsonify({'error': f'Quick verification failed: {str(e)}'}), 500
 
 
+@app.route('/api/delete/<filename>', methods=['DELETE'])
+def delete_file(filename):
+    """Delete a specific uploaded file and its HMAC record."""
+    try:
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        hmac_store = load_hmac_store()
+        
+        # Check if file exists in store
+        if filename not in hmac_store:
+            return jsonify({'error': 'File not found in records'}), 404
+        
+        # Remove physical file if exists
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # Remove from HMAC store
+        original_filename = hmac_store[filename]['original_filename']
+        del hmac_store[filename]
+        save_hmac_store(hmac_store)
+        
+        return jsonify({
+            'success': True,
+            'message': f'File "{original_filename}" deleted successfully',
+            'deleted_filename': filename
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Delete failed: {str(e)}'}), 500
+
+
+@app.route('/api/reset-all', methods=['POST'])
+def reset_all_files():
+    """Reset all uploaded files and HMAC store."""
+    try:
+        deleted_count = 0
+        
+        # Load current store to get file list
+        hmac_store = load_hmac_store()
+        
+        # Delete all physical files
+        for filename in hmac_store.keys():
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                deleted_count += 1
+        
+        # Clear HMAC store
+        save_hmac_store({})
+        
+        # Also clean up any orphaned files in uploads folder
+        if os.path.exists(UPLOAD_FOLDER):
+            for file in os.listdir(UPLOAD_FOLDER):
+                if file.endswith('.txt') or file.endswith('.hmac'):
+                    file_path = os.path.join(UPLOAD_FOLDER, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        deleted_count += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'All files reset successfully. Deleted {deleted_count} files.',
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Reset failed: {str(e)}'}), 500
+
+
 if __name__ == '__main__':
     print("🚀 HMAC File Uploader Server Starting...")
     print("📁 Upload folder:", UPLOAD_FOLDER)
