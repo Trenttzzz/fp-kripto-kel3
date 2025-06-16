@@ -416,4 +416,4 @@ if __name__ == '__main__':
     print("📁 Upload folder:", UPLOAD_FOLDER)
     print("🔒 HMAC store file:", HMAC_STORE_FILE)
     print("🌐 Server will be available at: http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5002)
