@@ -2,7 +2,7 @@
 
 Aplikasi web yang aman untuk mendemonstrasikan verifikasi integritas file menggunakan HMAC-SHA256. Proyek ini memungkinkan pengguna untuk mengunggah file teks, menghasilkan tanda tangan HMAC, dan memverifikasi keaslian file—menunjukkan praktik keamanan kriptografi dunia nyata.
 
-**Final Project - Sistem Keamanan Kriptografi**  
+**Final Project - Kriptografi**  
 **Kelompok 3 - Institut Teknologi Sepuluh Nopember**  
 **Tahun Akademik 2025**
 
