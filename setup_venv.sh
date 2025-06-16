@@ -21,4 +21,4 @@ echo "Mengaktifkan virtual environment..."
 
 source $VENV_DIR/bin/activate
 
-python3 app.py
+python app.py

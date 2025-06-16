@@ -14,7 +14,7 @@ CORS(app)
 UPLOAD_FOLDER = 'uploads'
 HMAC_STORE_FILE = 'hmac_store.json'
 ALLOWED_EXTENSIONS = {'txt'}
-PORT = 5002
+PORT = 5003
 
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
