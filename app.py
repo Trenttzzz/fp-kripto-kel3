@@ -274,19 +274,31 @@ def quick_verify_file():
         # Determine result based on matches found
         if found_match:
             # Content matches exactly - file is authentic
+            stored_info = found_match['info']
+            current_uploaded_filename = original_filename
+
+            is_renamed = stored_info['original_filename'] != current_uploaded_filename
+            
+            if is_renamed:
+                note = f"Renamed: File content is identical to the stored file '{stored_info['original_filename']}', but the filename has been changed."
+            else:
+                note = 'File content is identical to stored version (HMAC match).'
+
             return jsonify({
                 'success': True,
                 'is_valid': True,
                 'match_found': True,
                 'match_type': 'content',
-                'message': f'✅ File integrity verified! This file matches our stored version.',
+                'message': '✅ File integrity verified! This file matches our stored version.',
                 'stored_filename': found_match['filename'],
-                'original_filename': found_match['info']['original_filename'],
-                'upload_time': found_match['info']['upload_time'],
-                'stored_hmac': found_match['info']['hmac'],
+                'original_filename': stored_info['original_filename'],
+                'current_filename': current_uploaded_filename,
+                'is_renamed': is_renamed,
+                'upload_time': stored_info['upload_time'],
+                'stored_hmac': stored_info['hmac'],
                 'calculated_hmac': current_hmac,
                 'file_size': len(file_content),
-                'note': 'File content is identical to stored version (HMAC match).'
+                'note': note
             })
         elif filename_match:
             # Same filename but different content - file has been modified
