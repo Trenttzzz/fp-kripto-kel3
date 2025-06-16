@@ -300,7 +300,7 @@ function showQuickVerificationResult(result) {
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
     
     let content = `
-        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-96 overflow-y-auto">
+        <div class="bg-white rounded-2xl p-6 max-w-3xl w-full max-h-96 overflow-y-auto">
             <div class="flex items-center gap-3 mb-4">
                 <i data-lucide="zap" class="w-8 h-8 text-yellow-600"></i>
                 <h3 class="text-2xl font-bold text-gray-800">Quick Integrity Check Result</h3>
@@ -310,28 +310,40 @@ function showQuickVerificationResult(result) {
     
     if (result.match_found) {
         const statusColor = result.is_valid ? 'green' : 'red';
+        const matchTypeText = result.match_type === 'content' ? 
+            '🎯 Content-based match (regardless of filename)' : 
+            '📄 Filename-based match (but content differs)';
+            
         content += `
                 <div class="p-4 rounded-lg bg-${statusColor}-50 border border-${statusColor}-200">
                     <p class="font-medium text-${statusColor}-800">${result.message}</p>
+                    <p class="text-sm text-${statusColor}-700 mt-2">${matchTypeText}</p>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <h4 class="font-semibold text-gray-700 mb-2">Stored Information</h4>
-                        <p class="text-sm text-gray-600"><strong>File:</strong> ${result.original_filename}</p>
+                        <h4 class="font-semibold text-gray-700 mb-2">📁 Stored Information</h4>
+                        <p class="text-sm text-gray-600"><strong>Original Name:</strong> ${result.original_filename}</p>
+                        <p class="text-sm text-gray-600"><strong>Stored File:</strong> ${result.stored_filename}</p>
                         <p class="text-sm text-gray-600"><strong>Uploaded:</strong> ${new Date(result.upload_time).toLocaleString()}</p>
-                        <p class="text-sm text-gray-600 break-all"><strong>Stored HMAC:</strong><br><code class="bg-white p-1 rounded text-xs">${result.stored_hmac}</code></p>
+                        <p class="text-sm text-gray-600 break-all"><strong>Stored HMAC:</strong><br><code class="bg-white p-1 rounded text-xs font-mono">${result.stored_hmac}</code></p>
                     </div>
                     
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <h4 class="font-semibold text-gray-700 mb-2">Current File</h4>
+                        <h4 class="font-semibold text-gray-700 mb-2">📄 Current File</h4>
+                        <p class="text-sm text-gray-600"><strong>Current Name:</strong> ${result.current_filename || 'N/A'}</p>
                         <p class="text-sm text-gray-600"><strong>Size:</strong> ${result.file_size} bytes</p>
-                        <p class="text-sm text-gray-600 break-all"><strong>Calculated HMAC:</strong><br><code class="bg-white p-1 rounded text-xs">${result.calculated_hmac}</code></p>
+                        <p class="text-sm text-gray-600 break-all"><strong>Calculated HMAC:</strong><br><code class="bg-white p-1 rounded text-xs font-mono">${result.calculated_hmac}</code></p>
                         <p class="text-sm mt-2 ${result.is_valid ? 'text-green-600' : 'text-red-600'}">
-                            <strong>${result.is_valid ? '✅ HMAC Match' : '❌ HMAC Mismatch'}</strong>
+                            <strong>${result.is_valid ? '✅ Content Verified' : '❌ Content Modified'}</strong>
                         </p>
                     </div>
-                </div>`;
+                </div>
+                
+                ${result.note ? `
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded">
+                    <p class="text-sm text-blue-800"><strong>ℹ️ Note:</strong> ${result.note}</p>
+                </div>` : ''}`;
     } else {
         content += `
                 <div class="p-4 rounded-lg bg-blue-50 border border-blue-200">
@@ -339,12 +351,20 @@ function showQuickVerificationResult(result) {
                 </div>
                 
                 <div class="bg-gray-50 p-4 rounded-lg">
-                    <h4 class="font-semibold text-gray-700 mb-2">File Information</h4>
+                    <h4 class="font-semibold text-gray-700 mb-2">📄 File Information</h4>
+                    <p class="text-sm text-gray-600"><strong>Filename:</strong> ${result.current_filename}</p>
                     <p class="text-sm text-gray-600"><strong>Size:</strong> ${result.file_size} bytes</p>
-                    <p class="text-sm text-gray-600 break-all"><strong>Calculated HMAC:</strong><br><code class="bg-white p-1 rounded text-xs">${result.calculated_hmac}</code></p>
+                    <p class="text-sm text-gray-600 break-all"><strong>Calculated HMAC:</strong><br><code class="bg-white p-1 rounded text-xs font-mono">${result.calculated_hmac}</code></p>
+                    
+                    ${result.suggestion ? `
                     <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <p class="text-sm text-yellow-800">${result.suggestion}</p>
-                    </div>
+                        <p class="text-sm text-yellow-800"><strong>💡 Suggestion:</strong> ${result.suggestion}</p>
+                    </div>` : ''}
+                    
+                    ${result.note ? `
+                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                        <p class="text-sm text-blue-800"><strong>ℹ️ Note:</strong> ${result.note}</p>
+                    </div>` : ''}
                 </div>`;
     }
     

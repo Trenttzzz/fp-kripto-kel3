@@ -278,65 +278,77 @@ def quick_verify_file():
         # Load HMAC store
         hmac_store = load_hmac_store()
         
-        # Try to find matching file by original filename or content
-        found_match = None
+        # Calculate current HMAC first
         current_hmac = generate_hmac(file_content, secret_key)
         
-        # Search for matching file
-        for stored_filename, info in hmac_store.items():
-            # Check if original filename matches
-            if info['original_filename'] == original_filename:
-                # Verify if the HMAC matches (content is the same)
-                if info['hmac'] == current_hmac:
-                    found_match = {
-                        'filename': stored_filename,
-                        'info': info,
-                        'match_type': 'exact_match'
-                    }
-                    break
-                else:
-                    found_match = {
-                        'filename': stored_filename,
-                        'info': info,
-                        'match_type': 'filename_match_content_different'
-                    }
+        # Search for matching file by HMAC (content-based matching)
+        found_match = None
+        filename_match = None
         
+        for stored_filename, info in hmac_store.items():
+            # First priority: Check if HMAC matches (content is identical)
+            if info['hmac'] == current_hmac:
+                found_match = {
+                    'filename': stored_filename,
+                    'info': info,
+                    'match_type': 'content_match'
+                }
+                break
+            
+            # Second priority: Check if original filename matches (for reference)
+            if info['original_filename'] == original_filename and filename_match is None:
+                filename_match = {
+                    'filename': stored_filename,
+                    'info': info,
+                    'match_type': 'filename_match_content_different'
+                }
+        
+        # Determine result based on matches found
         if found_match:
-            if found_match['match_type'] == 'exact_match':
-                return jsonify({
-                    'success': True,
-                    'is_valid': True,
-                    'match_found': True,
-                    'message': f'✅ File integrity verified! This file matches the stored version.',
-                    'stored_filename': found_match['filename'],
-                    'original_filename': found_match['info']['original_filename'],
-                    'upload_time': found_match['info']['upload_time'],
-                    'stored_hmac': found_match['info']['hmac'],
-                    'calculated_hmac': current_hmac,
-                    'file_size': len(file_content)
-                })
-            else:
-                return jsonify({
-                    'success': True,
-                    'is_valid': False,
-                    'match_found': True,
-                    'message': f'❌ File has been modified! Found stored version but content differs.',
-                    'stored_filename': found_match['filename'],
-                    'original_filename': found_match['info']['original_filename'],
-                    'upload_time': found_match['info']['upload_time'],
-                    'stored_hmac': found_match['info']['hmac'],
-                    'calculated_hmac': current_hmac,
-                    'file_size': len(file_content)
-                })
+            # Content matches exactly - file is authentic
+            return jsonify({
+                'success': True,
+                'is_valid': True,
+                'match_found': True,
+                'match_type': 'content',
+                'message': f'✅ File integrity verified! This file matches our stored version.',
+                'stored_filename': found_match['filename'],
+                'original_filename': found_match['info']['original_filename'],
+                'upload_time': found_match['info']['upload_time'],
+                'stored_hmac': found_match['info']['hmac'],
+                'calculated_hmac': current_hmac,
+                'file_size': len(file_content),
+                'note': 'File content is identical to stored version (HMAC match).'
+            })
+        elif filename_match:
+            # Same filename but different content - file has been modified
+            return jsonify({
+                'success': True,
+                'is_valid': False,
+                'match_found': True,
+                'match_type': 'filename_only',
+                'message': f'❌ File has been modified! Found stored file with same name but different content.',
+                'stored_filename': filename_match['filename'],
+                'original_filename': filename_match['info']['original_filename'],
+                'upload_time': filename_match['info']['upload_time'],
+                'stored_hmac': filename_match['info']['hmac'],
+                'calculated_hmac': current_hmac,
+                'file_size': len(file_content),
+                'note': 'Filename matches but content is different (HMAC mismatch).'
+            })
         else:
+            # No match found - completely new file
             return jsonify({
                 'success': True,
                 'is_valid': False,
                 'match_found': False,
-                'message': f'🔍 No stored version found for "{original_filename}". This might be a new file.',
+                'match_type': 'no_match',
+                'message': f'🔍 No matching file found in our database.',
+                'current_filename': original_filename,
                 'calculated_hmac': current_hmac,
                 'file_size': len(file_content),
-                'suggestion': 'Upload this file first to store its HMAC for future verification.'
+                'suggestion': 'This appears to be a new file. Upload it first to store its HMAC for future verification.',
+                'note': 'Neither content nor filename matches any stored files.'
             })
         
     except Exception as e:
