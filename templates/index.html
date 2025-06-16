@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔒 HMAC File Uploader & Verifier</title>
+    <title>HMAC File Uploader & Verifier</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>
@@ -150,6 +150,45 @@
             backdrop-filter: blur(10px);
         }
         
+        .tab-button {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-weight: 500;
+        }
+        
+        .tab-button.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #0369a1;
+            border-color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.95);
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeInContent 0.5s ease-in-out;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeInContent {
+            from { 
+                opacity: 0; 
+                transform: translateY(10px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+        
         .badge {
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(8px);
@@ -170,28 +209,150 @@
     </style>
 </head>
 <body class="font-sans antialiased">
-    <!-- Header -->
-    <div class="container mx-auto px-4 py-8 lg:py-12">
-        <div class="text-center text-white mb-12 fade-in">
-            <h1 class="text-4xl lg:text-5xl font-bold mb-4 tracking-tight">
+    <!-- Header with Navigation -->
+    <div class="container mx-auto px-4 py-6">
+        <!-- App Title -->
+        <div class="text-center text-white mb-8">
+            <h1 class="text-3xl lg:text-5xl font-bold mb-3 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
                 🔒 HMAC File Uploader & Verifier
             </h1>
-            <p class="text-xl lg:text-2xl font-medium opacity-90 mb-2">
+            <p class="text-lg lg:text-xl text-white/90 font-medium">
                 Secure file upload with HMAC-SHA256 integrity protection
             </p>
-            <p class="text-sm lg:text-base opacity-75 font-medium">
-                Final Project - Sistem Keamanan Kriptografi | Kelompok 3 - ITS
+            <p class="text-sm text-white/75 mt-2">
+                Final Project - Kriptografi | Kelompok 3
             </p>
         </div>
 
-        <!-- Main Content -->
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
+        <!-- Tab Navigation -->
+        <div class="flex justify-center mb-8">
+            <div class="glass-card rounded-2xl p-2 inline-flex gap-2">
+                <button id="homeTab" class="tab-button active px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2">
+                    <i data-lucide="home" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Home</span>
+                </button>
+                <button id="uploadTab" class="tab-button px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Upload</span>
+                </button>
+                <button id="managerTab" class="tab-button px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2">
+                    <i data-lucide="folder" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Manager</span>
+                </button>
+                <button id="checkTab" class="tab-button px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Check</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="max-w-6xl mx-auto">
             
-            <!-- Left Column: Upload & Verify -->
-            <div class="space-y-6 lg:space-y-8">
-                
-                <!-- File Upload Section -->
-                <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
+            <!-- Home Tab -->
+            <div id="homeContent" class="tab-content active">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Welcome Section -->
+                    <div class="glass-card rounded-3xl p-8 shadow-2xl fade-in">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="section-icon p-3 rounded-2xl">
+                                <i data-lucide="info" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <h2 class="text-2xl lg:text-3xl font-bold text-white">About HMAC</h2>
+                        </div>
+                        
+                        <div class="text-white/90 space-y-4 leading-relaxed">
+                            <p class="text-lg font-medium">
+                                <strong class="text-white">HMAC (Hash-based Message Authentication Code)</strong> 
+                                memastikan integritas dan keaslian data.
+                            </p>
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3">
+                                    <i data-lucide="key" class="w-5 h-5 text-accent-400"></i>
+                                    <span>Menggunakan SHA-256 dengan kunci rahasia</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <i data-lucide="shield" class="w-5 h-5 text-accent-400"></i>
+                                    <span>Mendeteksi segala modifikasi file</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <i data-lucide="zap" class="w-5 h-5 text-accent-400"></i>
+                                    <span>Perbandingan waktu konstan mencegah timing attacks</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <i data-lucide="file-text" class="w-5 h-5 text-accent-400"></i>
+                                    <span>Mendukung file .txt untuk demonstrasi</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Features Section -->
+                    <div class="glass-card rounded-3xl p-8 shadow-2xl fade-in">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="section-icon p-3 rounded-2xl">
+                                <i data-lucide="star" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <h2 class="text-2xl lg:text-3xl font-bold text-white">Fitur Utama</h2>
+                        </div>
+                        
+                        <div class="space-y-4 text-white/90">
+                            <div class="flex items-start gap-3">
+                                <i data-lucide="upload" class="w-5 h-5 text-primary-400 mt-1"></i>
+                                <div>
+                                    <h3 class="font-semibold text-white">File Upload & HMAC Generation</h3>
+                                    <p class="text-sm">Upload file .txt dan generate HMAC secara otomatis</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3">
+                                <i data-lucide="search" class="w-5 h-5 text-primary-400 mt-1"></i>
+                                <div>
+                                    <h3 class="font-semibold text-white">Smart Integrity Check</h3>
+                                    <p class="text-sm">Deteksi otomatis file yang dimodifikasi dengan multi-level detection</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3">
+                                <i data-lucide="folder" class="w-5 h-5 text-primary-400 mt-1"></i>
+                                <div>
+                                    <h3 class="font-semibold text-white">File Management</h3>
+                                    <p class="text-sm">Download, delete, dan manage file dengan mudah</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3">
+                                <i data-lucide="alert-triangle" class="w-5 h-5 text-primary-400 mt-1"></i>
+                                <div>
+                                    <h3 class="font-semibold text-white">Educational Tampering</h3>
+                                    <p class="text-sm">Simulasi perusakan file untuk pembelajaran</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics or Quick Actions -->
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="glass-card rounded-2xl p-6 text-center">
+                        <div class="text-2xl font-bold text-white" id="totalFiles">0</div>
+                        <div class="text-white/70 text-sm">Files Uploaded</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-6 text-center">
+                        <div class="text-2xl font-bold text-accent-400">SHA-256</div>
+                        <div class="text-white/70 text-sm">Hash Algorithm</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-6 text-center">
+                        <div class="text-2xl font-bold text-primary-400">Multi-Level</div>
+                        <div class="text-white/70 text-sm">Detection System</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-6 text-center">
+                        <div class="text-2xl font-bold text-green-400">Secure</div>
+                        <div class="text-white/70 text-sm">Cryptography</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Tab -->
+            <div id="uploadContent" class="tab-content">
+                <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in max-w-2xl mx-auto">
                     <div class="flex items-center gap-4 mb-8">
                         <div class="section-icon p-3 rounded-2xl">
                             <i data-lucide="upload" class="w-6 h-6 text-white"></i>
@@ -199,10 +360,17 @@
                         <h2 class="text-2xl lg:text-3xl font-bold text-white">Upload File</h2>
                     </div>
                     
+                    <div class="info-card mb-6 p-4 rounded-2xl">
+                        <p class="text-sm lg:text-base text-white/90 font-medium">
+                            <i data-lucide="info" class="w-4 h-4 inline mr-2"></i>
+                            Upload file .txt dan generate HMAC untuk memastikan integritas file
+                        </p>
+                    </div>
+                    
                     <form id="uploadForm" class="space-y-6">
                         <div>
                             <label class="block text-base font-semibold text-white mb-3">
-                                Select .txt file
+                                Pilih File .txt
                             </label>
                             <input type="file" id="fileInput" accept=".txt" 
                                    class="file-input w-full p-4 rounded-2xl text-white placeholder-white/70 font-medium">
@@ -212,7 +380,7 @@
                             <label class="block text-base font-semibold text-white mb-3">
                                 Secret Key
                             </label>
-                            <input type="password" id="secretKey" placeholder="Enter your secret key"
+                            <input type="password" id="secretKey" placeholder="Masukkan secret key Anda"
                                    class="input-field w-full p-4 rounded-2xl text-gray-800 placeholder-gray-500 font-medium text-base">
                         </div>
                         
@@ -223,143 +391,181 @@
                         </button>
                     </form>
                 </div>
+            </div>
 
-                <!-- Quick Integrity Check Section -->
-                <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
-                    <div class="flex flex-wrap items-center gap-4 mb-8">
-                        <div class="section-icon p-3 rounded-2xl">
-                            <i data-lucide="zap" class="w-6 h-6 text-white"></i>
+            <!-- File Manager Tab -->
+            <div id="managerContent" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- File List -->
+                    <div class="lg:col-span-2">
+                        <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
+                            <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+                                <div class="flex items-center gap-4">
+                                    <div class="section-icon p-3 rounded-2xl">
+                                        <i data-lucide="file-text" class="w-6 h-6 text-white"></i>
+                                    </div>
+                                    <h2 class="text-2xl lg:text-3xl font-bold text-white">File Manager</h2>
+                                </div>
+                                <div class="flex gap-3">
+                                    <button id="resetAllFiles" 
+                                            class="bg-red-600/80 backdrop-blur-sm border border-red-400/30 px-4 py-2 rounded-2xl text-white font-semibold flex items-center gap-2 hover:scale-105 hover:bg-red-500/80 transition-all">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        Reset All
+                                    </button>
+                                    <button id="refreshFiles" 
+                                            class="glass-button px-6 py-3 rounded-2xl text-white font-semibold flex items-center gap-2 hover:scale-105">
+                                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                        Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="filesList" class="space-y-4">
+                                <!-- Files will be loaded here -->
+                            </div>
                         </div>
-                        <h2 class="text-2xl lg:text-3xl font-bold text-white">Quick Integrity Check</h2>
-                        <span class="badge text-white text-sm px-3 py-1.5 rounded-full font-semibold">AUTO</span>
                     </div>
-                    
-                    <div class="info-card mb-6 p-4 rounded-2xl">
-                        <p class="text-sm lg:text-base text-white/90 font-medium">
-                            <i data-lucide="lightbulb" class="w-4 h-4 inline mr-2"></i>
-                            Upload a file you previously downloaded from this app. We'll automatically check its integrity!
-                        </p>
-                    </div>
-                    
-                    <form id="quickVerifyForm" class="space-y-6">
-                        <div>
-                            <label class="block text-base font-semibold text-white mb-3">
-                                Select downloaded file
-                            </label>
-                            <input type="file" id="quickVerifyFileInput" accept=".txt"
-                                   class="file-input w-full p-4 rounded-2xl text-white placeholder-white/70 font-medium">
-                        </div>
-                        
-                        <div>
-                            <label class="block text-base font-semibold text-white mb-3">
-                                Secret Key
-                            </label>
-                            <input type="password" id="quickVerifySecretKey" placeholder="Enter the secret key"
-                                   class="input-field w-full p-4 rounded-2xl text-gray-800 placeholder-gray-500 font-medium text-base">
-                        </div>
-                        
-                        <button type="submit"
-                                class="w-full bg-accent-600 hover:bg-accent-700 text-white py-4 px-6 rounded-2xl transition-all duration-300 font-semibold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:-translate-y-0.5">
-                            <i data-lucide="zap" class="w-5 h-5"></i>
-                            Quick Integrity Check
-                        </button>
-                    </form>
-                </div>
 
-                <!-- File Verification Section -->
-                <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
-                    <div class="flex items-center gap-4 mb-8">
-                        <div class="section-icon p-3 rounded-2xl">
-                            <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                    <!-- Manager Info -->
+                    <div>
+                        <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div class="section-icon p-3 rounded-2xl">
+                                    <i data-lucide="folder" class="w-6 h-6 text-white"></i>
+                                </div>
+                                <h3 class="text-xl lg:text-2xl font-bold text-white">File Operations</h3>
+                            </div>
+                            
+                            <div class="space-y-4 text-white/90">
+                                <div class="flex items-start gap-3">
+                                    <i data-lucide="download" class="w-5 h-5 text-primary-400 mt-1"></i>
+                                    <div>
+                                        <h4 class="font-semibold text-white">Download</h4>
+                                        <p class="text-sm">Download file asli dengan HMAC yang ditambahkan</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <i data-lucide="trash-2" class="w-5 h-5 text-red-400 mt-1"></i>
+                                    <div>
+                                        <h4 class="font-semibold text-white">Delete</h4>
+                                        <p class="text-sm">Hapus file dan HMAC-nya secara permanen</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <i data-lucide="edit" class="w-5 h-5 text-yellow-400 mt-1"></i>
+                                    <div>
+                                        <h4 class="font-semibold text-white">Tamper</h4>
+                                        <p class="text-sm">Simulasi perusakan untuk pembelajaran</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <i data-lucide="rotate-ccw" class="w-5 h-5 text-orange-400 mt-1"></i>
+                                    <div>
+                                        <h4 class="font-semibold text-white">Reset All</h4>
+                                        <p class="text-sm">Hapus semua file dan mulai dari awal</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- File Stats -->
+                            <div class="mt-6 pt-6 border-t border-white/20">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-white" id="totalFilesManager">0</div>
+                                    <div class="text-white/70 text-sm">Total Files</div>
+                                </div>
+                            </div>
                         </div>
-                        <h2 class="text-2xl lg:text-3xl font-bold text-white">Manual Verify File Integrity</h2>
                     </div>
-                    
-                    <form id="verifyForm" class="space-y-6">
-                        <div>
-                            <label class="block text-base font-semibold text-white mb-3">
-                                Select file to verify
-                            </label>
-                            <input type="file" id="verifyFileInput" accept=".txt"
-                                   class="file-input w-full p-4 rounded-2xl text-white placeholder-white/70 font-medium">
-                        </div>
-                        
-                        <div>
-                            <label class="block text-base font-semibold text-white mb-3">
-                                Secret Key
-                            </label>
-                            <input type="password" id="verifySecretKey" placeholder="Enter the secret key"
-                                   class="input-field w-full p-4 rounded-2xl text-gray-800 placeholder-gray-500 font-medium text-base">
-                        </div>
-                        
-                        <div>
-                            <label class="block text-base font-semibold text-white mb-3">
-                                Expected HMAC
-                            </label>
-                            <input type="text" id="expectedHmac" placeholder="Enter the expected HMAC value"
-                                   class="input-field w-full p-4 rounded-2xl text-gray-800 placeholder-gray-500 font-mono text-sm lg:text-base">
-                        </div>
-                        
-                        <button type="submit"
-                                class="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-2xl transition-all duration-300 font-semibold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:-translate-y-0.5">
-                            <i data-lucide="shield-check" class="w-5 h-5"></i>
-                            Verify File Integrity
-                        </button>
-                    </form>
                 </div>
             </div>
 
-            <!-- Right Column: File List -->
-            <div class="space-y-6 lg:space-y-8">
-                
-                <!-- Uploaded Files Section -->
-                <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
-                    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-                        <div class="flex items-center gap-4">
-                            <div class="section-icon p-3 rounded-2xl">
-                                <i data-lucide="file-text" class="w-6 h-6 text-white"></i>
+            <!-- Integrity Check Tab -->
+            <div id="checkContent" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Quick Check Form -->
+                    <div class="lg:col-span-2">
+                        <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
+                            <div class="flex flex-wrap items-center gap-4 mb-8">
+                                <div class="section-icon p-3 rounded-2xl">
+                                    <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                                </div>
+                                <h2 class="text-2xl lg:text-3xl font-bold text-white">Quick Integrity Check</h2>
+                                <span class="badge text-white text-sm px-3 py-1.5 rounded-full font-semibold">OTOMATIS</span>
                             </div>
-                            <h2 class="text-2xl lg:text-3xl font-bold text-white">Uploaded Files</h2>
+                            
+                            <div class="info-card mb-6 p-4 rounded-2xl">
+                                <p class="text-sm lg:text-base text-white/90 font-medium">
+                                    <i data-lucide="lightbulb" class="w-4 h-4 inline mr-2"></i>
+                                    Upload file yang sebelumnya didownload dari aplikasi ini. Kami akan otomatis mengecek integritasnya!
+                                </p>
+                            </div>
+                            
+                            <form id="quickVerifyForm" class="space-y-6">
+                                <div>
+                                    <label class="block text-base font-semibold text-white mb-3">
+                                        Pilih File yang Sudah Didownload
+                                    </label>
+                                    <input type="file" id="quickVerifyFileInput" accept=".txt"
+                                           class="file-input w-full p-4 rounded-2xl text-white placeholder-white/70 font-medium">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-base font-semibold text-white mb-3">
+                                        Secret Key
+                                    </label>
+                                    <input type="password" id="quickVerifySecretKey" placeholder="Masukkan secret key"
+                                           class="input-field w-full p-4 rounded-2xl text-gray-800 placeholder-gray-500 font-medium text-base">
+                                </div>
+                                
+                                <button type="submit"
+                                        class="w-full bg-accent-600 hover:bg-accent-700 text-white py-4 px-6 rounded-2xl transition-all duration-300 font-semibold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+                                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                                    Cek Integritas Otomatis
+                                </button>
+                            </form>
                         </div>
-                        <button id="refreshFiles" 
-                                class="glass-button px-6 py-3 rounded-2xl text-white font-semibold flex items-center gap-2 hover:scale-105">
-                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                            Refresh
-                        </button>
                     </div>
-                    
-                    <div id="filesList" class="space-y-4">
-                        <!-- Files will be loaded here -->
-                    </div>
-                </div>
 
-                <!-- HMAC Information -->
-                <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
-                    <div class="flex items-center gap-4 mb-6">
-                        <div class="section-icon p-3 rounded-2xl">
-                            <i data-lucide="info" class="w-6 h-6 text-white"></i>
-                        </div>
-                        <h3 class="text-xl lg:text-2xl font-bold text-white">About HMAC</h3>
-                    </div>
-                    
-                    <div class="text-sm lg:text-base text-white/90 space-y-4 font-medium leading-relaxed">
-                        <p>
-                            <strong class="text-white">HMAC (Hash-based Message Authentication Code)</strong> 
-                            ensures both data integrity and authenticity.
-                        </p>
-                        <div class="space-y-2">
-                            <p class="flex items-center gap-2">
-                                🔑 <span>Uses SHA-256 with your secret key</span>
-                            </p>
-                            <p class="flex items-center gap-2">
-                                🛡️ <span>Detects any file modifications</span>
-                            </p>
-                            <p class="flex items-center gap-2">
-                                ⚡ <span>Constant-time comparison prevents timing attacks</span>
-                            </p>
-                            <p class="flex items-center gap-2">
-                                📁 <span>Only .txt files are supported</span>
-                            </p>
+                    <!-- Check Info -->
+                    <div>
+                        <div class="glass-card rounded-3xl p-6 lg:p-8 shadow-2xl fade-in">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div class="section-icon p-3 rounded-2xl">
+                                    <i data-lucide="info" class="w-6 h-6 text-white"></i>
+                                </div>
+                                <h3 class="text-xl lg:text-2xl font-bold text-white">Deteksi Multi-Level</h3>
+                            </div>
+                            
+                            <div class="text-sm lg:text-base text-white/90 space-y-4 font-medium leading-relaxed">
+                                <div class="space-y-3">
+                                    <div class="flex items-center gap-3">
+                                        <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
+                                        <span><strong>File Asli:</strong> HMAC cocok sempurna</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-400"></i>
+                                        <span><strong>Renamed:</strong> Nama berubah, isi sama</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <i data-lucide="x-circle" class="w-5 h-5 text-red-400"></i>
+                                        <span><strong>Modified:</strong> Isi file diubah</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <i data-lucide="help-circle" class="w-5 h-5 text-gray-400"></i>
+                                        <span><strong>Unknown:</strong> File tidak dikenali</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-6 pt-4 border-t border-white/20">
+                                    <h4 class="font-semibold text-white mb-2">Keamanan:</h4>
+                                    <ul class="space-y-1 text-sm">
+                                        <li>• Perbandingan waktu konstan</li>
+                                        <li>• SHA-256 cryptographic hash</li>
+                                        <li>• Deteksi otomatis tanpa input manual</li>
+                                        <li>• Toleran terhadap perubahan nama file</li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -180,48 +180,6 @@ def download_hmac(filename):
         return jsonify({'error': f'HMAC download failed: {str(e)}'}), 500
 
 
-@app.route('/api/verify', methods=['POST'])
-def verify_file():
-    """Verify file integrity using HMAC."""
-    try:
-        # Check if file, key, and HMAC are provided
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-        
-        file = request.files['file']
-        secret_key = request.form.get('secret_key')
-        expected_hmac = request.form.get('hmac')
-        
-        if not secret_key:
-            return jsonify({'error': 'Secret key is required'}), 400
-        
-        if not expected_hmac:
-            return jsonify({'error': 'HMAC value is required'}), 400
-        
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-        
-        # Read file content
-        file_content = file.read()
-        
-        # Verify HMAC
-        is_valid = verify_hmac(file_content, secret_key, expected_hmac)
-        
-        # Calculate current HMAC for comparison
-        current_hmac = generate_hmac(file_content, secret_key)
-        
-        return jsonify({
-            'success': True,
-            'is_valid': is_valid,
-            'message': 'File integrity verified ✅' if is_valid else 'File integrity check failed ❌',
-            'provided_hmac': expected_hmac,
-            'calculated_hmac': current_hmac,
-            'file_size': len(file_content)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Verification failed: {str(e)}'}), 500
-
 
 @app.route('/api/simulate-tamper/<filename>', methods=['POST'])
 def simulate_tamper(filename):
@@ -278,69 +236,179 @@ def quick_verify_file():
         # Load HMAC store
         hmac_store = load_hmac_store()
         
-        # Try to find matching file by original filename or content
-        found_match = None
+        # Calculate current HMAC first
         current_hmac = generate_hmac(file_content, secret_key)
         
-        # Search for matching file
-        for stored_filename, info in hmac_store.items():
-            # Check if original filename matches
-            if info['original_filename'] == original_filename:
-                # Verify if the HMAC matches (content is the same)
-                if info['hmac'] == current_hmac:
-                    found_match = {
-                        'filename': stored_filename,
-                        'info': info,
-                        'match_type': 'exact_match'
-                    }
-                    break
-                else:
-                    found_match = {
-                        'filename': stored_filename,
-                        'info': info,
-                        'match_type': 'filename_match_content_different'
-                    }
+        # Search for matching file by HMAC (content-based matching)
+        found_match = None
+        filename_match = None
+        similar_files = []
         
+        for stored_filename, info in hmac_store.items():
+            # First priority: Check if HMAC matches (content is identical)
+            if info['hmac'] == current_hmac:
+                found_match = {
+                    'filename': stored_filename,
+                    'info': info,
+                    'match_type': 'content_match'
+                }
+                break
+            
+            # Second priority: Check if original filename matches (for reference)
+            if info['original_filename'] == original_filename and filename_match is None:
+                filename_match = {
+                    'filename': stored_filename,
+                    'info': info,
+                    'match_type': 'filename_match_content_different'
+                }
+            
+            # Third priority: Check for similar files (same size, could be modified)
+            if abs(info['file_size'] - len(file_content)) <= 50:  # Within 50 bytes difference
+                similar_files.append({
+                    'filename': stored_filename,
+                    'info': info,
+                    'size_diff': abs(info['file_size'] - len(file_content))
+                })
+        
+        # Determine result based on matches found
         if found_match:
-            if found_match['match_type'] == 'exact_match':
-                return jsonify({
-                    'success': True,
-                    'is_valid': True,
-                    'match_found': True,
-                    'message': f'✅ File integrity verified! This file matches the stored version.',
-                    'stored_filename': found_match['filename'],
-                    'original_filename': found_match['info']['original_filename'],
-                    'upload_time': found_match['info']['upload_time'],
-                    'stored_hmac': found_match['info']['hmac'],
-                    'calculated_hmac': current_hmac,
-                    'file_size': len(file_content)
-                })
-            else:
-                return jsonify({
-                    'success': True,
-                    'is_valid': False,
-                    'match_found': True,
-                    'message': f'❌ File has been modified! Found stored version but content differs.',
-                    'stored_filename': found_match['filename'],
-                    'original_filename': found_match['info']['original_filename'],
-                    'upload_time': found_match['info']['upload_time'],
-                    'stored_hmac': found_match['info']['hmac'],
-                    'calculated_hmac': current_hmac,
-                    'file_size': len(file_content)
-                })
+            # Content matches exactly - file is authentic
+            return jsonify({
+                'success': True,
+                'is_valid': True,
+                'match_found': True,
+                'match_type': 'content',
+                'message': f'✅ File integrity verified! This file matches our stored version.',
+                'stored_filename': found_match['filename'],
+                'original_filename': found_match['info']['original_filename'],
+                'upload_time': found_match['info']['upload_time'],
+                'stored_hmac': found_match['info']['hmac'],
+                'calculated_hmac': current_hmac,
+                'file_size': len(file_content),
+                'note': 'File content is identical to stored version (HMAC match).'
+            })
+        elif filename_match:
+            # Same filename but different content - file has been modified
+            return jsonify({
+                'success': True,
+                'is_valid': False,
+                'match_found': True,
+                'match_type': 'filename_only',
+                'message': f'⚠️ FILE MODIFIED! Found stored file with same name but different content.',
+                'stored_filename': filename_match['filename'],
+                'original_filename': filename_match['info']['original_filename'],
+                'upload_time': filename_match['info']['upload_time'],
+                'stored_hmac': filename_match['info']['hmac'],
+                'calculated_hmac': current_hmac,
+                'file_size': len(file_content),
+                'note': 'Filename matches stored file but content has been modified (HMAC mismatch).',
+                'warning': 'This file appears to be a modified version of a file in our database.'
+            })
+        elif similar_files:
+            # Similar file size - possibly modified file
+            best_match = min(similar_files, key=lambda x: x['size_diff'])
+            return jsonify({
+                'success': True,
+                'is_valid': False,
+                'match_found': True,
+                'match_type': 'possibly_modified',
+                'message': f'⚠️ POSSIBLE FILE MODIFICATION! Found similar file with close size.',
+                'stored_filename': best_match['filename'],
+                'original_filename': best_match['info']['original_filename'],
+                'upload_time': best_match['info']['upload_time'],
+                'stored_hmac': best_match['info']['hmac'],
+                'calculated_hmac': current_hmac,
+                'file_size': len(file_content),
+                'stored_file_size': best_match['info']['file_size'],
+                'size_difference': best_match['size_diff'],
+                'note': f'Found a stored file with similar size (±{best_match["size_diff"]} bytes). This might be a modified version.',
+                'warning': 'Content verification failed but file characteristics suggest this might be a modified version of a stored file.'
+            })
         else:
+            # No match found - completely new file
             return jsonify({
                 'success': True,
                 'is_valid': False,
                 'match_found': False,
-                'message': f'🔍 No stored version found for "{original_filename}". This might be a new file.',
+                'match_type': 'no_match',
+                'message': f'🔍 No matching file found in our database.',
+                'current_filename': original_filename,
                 'calculated_hmac': current_hmac,
                 'file_size': len(file_content),
-                'suggestion': 'Upload this file first to store its HMAC for future verification.'
+                'suggestion': 'This appears to be a completely new file. Upload it first to store its HMAC for future verification.',
+                'note': 'Neither content, filename, nor file characteristics match any stored files.'
             })
         
     except Exception as e:
         return jsonify({'error': f'Quick verification failed: {str(e)}'}), 500
+
+
+@app.route('/api/delete/<filename>', methods=['DELETE'])
+def delete_file(filename):
+    """Delete a specific uploaded file and its HMAC record."""
+    try:
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        hmac_store = load_hmac_store()
+        
+        # Check if file exists in store
+        if filename not in hmac_store:
+            return jsonify({'error': 'File not found in records'}), 404
+        
+        # Remove physical file if exists
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # Remove from HMAC store
+        original_filename = hmac_store[filename]['original_filename']
+        del hmac_store[filename]
+        save_hmac_store(hmac_store)
+        
+        return jsonify({
+            'success': True,
+            'message': f'File "{original_filename}" deleted successfully',
+            'deleted_filename': filename
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Delete failed: {str(e)}'}), 500
+
+
+@app.route('/api/reset-all', methods=['POST'])
+def reset_all_files():
+    """Reset all uploaded files and HMAC store."""
+    try:
+        deleted_count = 0
+        
+        # Load current store to get file list
+        hmac_store = load_hmac_store()
+        
+        # Delete all physical files
+        for filename in hmac_store.keys():
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                deleted_count += 1
+        
+        # Clear HMAC store
+        save_hmac_store({})
+        
+        # Also clean up any orphaned files in uploads folder
+        if os.path.exists(UPLOAD_FOLDER):
+            for file in os.listdir(UPLOAD_FOLDER):
+                if file.endswith('.txt') or file.endswith('.hmac'):
+                    file_path = os.path.join(UPLOAD_FOLDER, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        deleted_count += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'All files reset successfully. Deleted {deleted_count} files.',
+            'deleted_count': deleted_count
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Reset failed: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

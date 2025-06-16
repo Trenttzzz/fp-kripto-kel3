@@ -1,27 +1,78 @@
 // DOM Elements
 const uploadForm = document.getElementById('uploadForm');
-const verifyForm = document.getElementById('verifyForm');
 const quickVerifyForm = document.getElementById('quickVerifyForm');
 const filesList = document.getElementById('filesList');
 const refreshFiles = document.getElementById('refreshFiles');
+const resetAllFiles = document.getElementById('resetAllFiles');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const toastContainer = document.getElementById('toastContainer');
+
+// Tab Elements
+const tabButtons = {
+    home: document.getElementById('homeTab'),
+    upload: document.getElementById('uploadTab'),
+    manager: document.getElementById('managerTab'),
+    check: document.getElementById('checkTab')
+};
+
+const tabContents = {
+    home: document.getElementById('homeContent'),
+    upload: document.getElementById('uploadContent'),
+    manager: document.getElementById('managerContent'),
+    check: document.getElementById('checkContent')
+};
 
 // API Base URL
 const API_BASE = '/api';
 
+// Current active tab
+let currentTab = 'home';
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    setupTabNavigation();
     loadFiles();
     setupEventListeners();
+    updateFileStats();
 });
+
+// Set up tab navigation
+function setupTabNavigation() {
+    Object.keys(tabButtons).forEach(tabKey => {
+        tabButtons[tabKey].addEventListener('click', () => switchTab(tabKey));
+    });
+}
+
+// Switch between tabs
+function switchTab(targetTab) {
+    if (currentTab === targetTab) return;
+
+    // Remove active class from current tab
+    tabButtons[currentTab].classList.remove('active');
+    tabContents[currentTab].classList.remove('active');
+
+    // Add active class to target tab
+    tabButtons[targetTab].classList.add('active');
+    tabContents[targetTab].classList.add('active');
+
+    // Update current tab
+    currentTab = targetTab;
+
+    // Perform tab-specific actions
+    if (targetTab === 'manager') {
+        loadFiles();
+        updateFileStats();
+    } else if (targetTab === 'home') {
+        updateFileStats();
+    }
+}
 
 // Set up event listeners
 function setupEventListeners() {
     uploadForm.addEventListener('submit', handleFileUpload);
-    verifyForm.addEventListener('submit', handleFileVerification);
     quickVerifyForm.addEventListener('submit', handleQuickVerification);
     refreshFiles.addEventListener('click', loadFiles);
+    resetAllFiles.addEventListener('click', handleResetAllFiles);
 }
 
 // Show loading overlay
@@ -85,12 +136,12 @@ async function handleFileUpload(event) {
     const secretKey = document.getElementById('secretKey').value;
     
     if (!fileInput.files[0]) {
-        showToast('Please select a file', 'warning');
+        showToast('Silakan pilih file', 'warning');
         return;
     }
     
     if (!secretKey) {
-        showToast('Please enter a secret key', 'warning');
+        showToast('Silakan masukkan secret key', 'warning');
         return;
     }
 
@@ -109,78 +160,25 @@ async function handleFileUpload(event) {
         const result = await response.json();
 
         if (result.success) {
-            showToast(`File uploaded successfully! HMAC: ${result.hmac.substring(0, 16)}...`, 'success');
+            showToast(`File berhasil diupload! HMAC: ${result.hmac.substring(0, 16)}...`, 'success');
             uploadForm.reset();
             loadFiles(); // Refresh file list
+            updateFileStats(); // Update stats
+            
+            // Switch to manager tab to show the uploaded file
+            setTimeout(() => switchTab('manager'), 1000);
         } else {
-            showToast(result.error || 'Upload failed', 'error');
+            showToast(result.error || 'Upload gagal', 'error');
         }
     } catch (error) {
         console.error('Upload error:', error);
-        showToast('Upload failed: Network error', 'error');
+        showToast('Upload gagal: Network error', 'error');
     } finally {
         hideLoading();
     }
 }
 
 // Handle file verification
-async function handleFileVerification(event) {
-    event.preventDefault();
-    
-    const fileInput = document.getElementById('verifyFileInput');
-    const secretKey = document.getElementById('verifySecretKey').value;
-    const expectedHmac = document.getElementById('expectedHmac').value;
-    
-    if (!fileInput.files[0]) {
-        showToast('Please select a file to verify', 'warning');
-        return;
-    }
-    
-    if (!secretKey) {
-        showToast('Please enter the secret key', 'warning');
-        return;
-    }
-    
-    if (!expectedHmac) {
-        showToast('Please enter the expected HMAC', 'warning');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-    formData.append('secret_key', secretKey);
-    formData.append('hmac', expectedHmac);
-
-    try {
-        showLoading();
-        
-        const response = await fetch(`${API_BASE}/verify`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            const message = result.is_valid ? 
-                'File integrity verified ✅ File is authentic!' : 
-                'File integrity check failed ❌ File may be tampered!';
-            
-            showToast(message, result.is_valid ? 'success' : 'error');
-            
-            // Show detailed comparison
-            showVerificationResult(result);
-        } else {
-            showToast(result.error || 'Verification failed', 'error');
-        }
-    } catch (error) {
-        console.error('Verification error:', error);
-        showToast('Verification failed: Network error', 'error');
-    } finally {
-        hideLoading();
-    }
-}
-
 // Handle quick file verification
 async function handleQuickVerification(event) {
     event.preventDefault();
@@ -189,12 +187,12 @@ async function handleQuickVerification(event) {
     const secretKey = document.getElementById('quickVerifySecretKey').value;
     
     if (!fileInput.files[0]) {
-        showToast('Please select a file to verify', 'warning');
+        showToast('Silakan pilih file untuk diverifikasi', 'warning');
         return;
     }
     
     if (!secretKey) {
-        showToast('Please enter a secret key', 'warning');
+        showToast('Silakan masukkan secret key', 'warning');
         return;
     }
 
@@ -214,135 +212,144 @@ async function handleQuickVerification(event) {
 
         if (result.success) {
             if (result.match_found) {
-                const message = result.is_valid ? 
-                    '✅ File integrity verified! This file matches our stored version.' : 
-                    '❌ File has been modified! Content differs from stored version.';
+                let message = '';
+                let toastType = '';
                 
-                showToast(message, result.is_valid ? 'success' : 'error');
+                if (result.is_valid) {
+                    message = '✅ Integritas file terverifikasi! File ini cocok dengan versi yang tersimpan.';
+                    toastType = 'success';
+                } else {
+                    switch (result.match_type) {
+                        case 'filename_only':
+                            message = '⚠️ File Dimodifikasi! Nama sama tapi konten berubah.';
+                            toastType = 'warning';
+                            break;
+                        case 'possibly_modified':
+                            message = '⚠️ Kemungkinan Dimodifikasi! File serupa ditemukan dengan konten berbeda.';
+                            toastType = 'warning';
+                            break;
+                        default:
+                            message = '❌ File telah dimodifikasi! Konten berbeda dari versi tersimpan.';
+                            toastType = 'error';
+                    }
+                }
+                
+                showToast(message, toastType);
                 showQuickVerificationResult(result);
             } else {
-                showToast('🔍 No stored version found. This might be a new file.', 'info');
+                showToast('🔍 Tidak ada versi tersimpan ditemukan. Ini mungkin file baru.', 'info');
                 showQuickVerificationResult(result);
             }
         } else {
-            showToast(result.error || 'Quick verification failed', 'error');
+            showToast(result.error || 'Quick verification gagal', 'error');
         }
     } catch (error) {
         console.error('Quick verification error:', error);
-        showToast('Quick verification failed: Network error', 'error');
+        showToast('Quick verification gagal: Network error', 'error');
     } finally {
         hideLoading();
     }
 }
 
 // Show verification result in detail
-function showVerificationResult(result) {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-    modal.innerHTML = `
-        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-96 overflow-y-auto">
-            <div class="flex items-center gap-3 mb-4">
-                <i data-lucide="${result.is_valid ? 'check-circle' : 'x-circle'}" 
-                   class="w-8 h-8 ${result.is_valid ? 'text-green-600' : 'text-red-600'}"></i>
-                <h3 class="text-2xl font-bold text-gray-800">Verification Result</h3>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="p-4 rounded-lg ${result.is_valid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
-                    <p class="font-medium ${result.is_valid ? 'text-green-800' : 'text-red-800'}">
-                        ${result.message}
-                    </p>
-                </div>
-                
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Expected HMAC:</label>
-                        <code class="block p-2 bg-gray-100 rounded text-xs font-mono break-all">${result.provided_hmac}</code>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Calculated HMAC:</label>
-                        <code class="block p-2 bg-gray-100 rounded text-xs font-mono break-all">${result.calculated_hmac}</code>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">File Size:</label>
-                        <span class="text-gray-600">${result.file_size} bytes</span>
-                    </div>
-                </div>
-                
-                <div class="flex justify-end gap-3 pt-4">
-                    <button onclick="this.closest('.fixed').remove()" 
-                            class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-    lucide.createIcons();
-    
-    // Close on outside click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
 // Show quick verification result in detail
 function showQuickVerificationResult(result) {
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
     
     let content = `
-        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-96 overflow-y-auto">
+        <div class="glass-card rounded-2xl p-6 max-w-3xl w-full max-h-96 overflow-y-auto">
             <div class="flex items-center gap-3 mb-4">
-                <i data-lucide="zap" class="w-8 h-8 text-yellow-600"></i>
-                <h3 class="text-2xl font-bold text-gray-800">Quick Integrity Check Result</h3>
+                <i data-lucide="shield-check" class="w-8 h-8 text-accent-400"></i>
+                <h3 class="text-2xl font-bold text-white">Hasil Quick Integrity Check</h3>
             </div>
             
             <div class="space-y-4">`;
     
     if (result.match_found) {
-        const statusColor = result.is_valid ? 'green' : 'red';
+        let statusColor, matchTypeText, borderColor;
+        
+        if (result.is_valid) {
+            statusColor = 'green';
+            borderColor = 'border-green-200';
+            matchTypeText = '🎯 Content-based match (tidak terpengaruh nama file)';
+        } else {
+            switch (result.match_type) {
+                case 'filename_only':
+                    statusColor = 'orange';
+                    borderColor = 'border-orange-200';
+                    matchTypeText = '📄 Nama file cocok tapi konten dimodifikasi';
+                    break;
+                case 'possibly_modified':
+                    statusColor = 'yellow';
+                    borderColor = 'border-yellow-200';
+                    matchTypeText = '⚠️ Karakteristik file serupa terdeteksi (kemungkinan dimodifikasi)';
+                    break;
+                default:
+                    statusColor = 'red';
+                    borderColor = 'border-red-200';
+                    matchTypeText = '❌ Verifikasi konten gagal';
+            }
+        }
+            
         content += `
-                <div class="p-4 rounded-lg bg-${statusColor}-50 border border-${statusColor}-200">
-                    <p class="font-medium text-${statusColor}-800">${result.message}</p>
+                <div class="info-card p-4 rounded-lg border border-${statusColor}-200">
+                    <p class="font-medium text-white">${result.message}</p>
+                    <p class="text-sm text-white/80 mt-2">${matchTypeText}</p>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h4 class="font-semibold text-gray-700 mb-2">Stored Information</h4>
-                        <p class="text-sm text-gray-600"><strong>File:</strong> ${result.original_filename}</p>
-                        <p class="text-sm text-gray-600"><strong>Uploaded:</strong> ${new Date(result.upload_time).toLocaleString()}</p>
-                        <p class="text-sm text-gray-600 break-all"><strong>Stored HMAC:</strong><br><code class="bg-white p-1 rounded text-xs">${result.stored_hmac}</code></p>
+                    <div class="info-card p-4 rounded-lg">
+                        <h4 class="font-semibold text-white mb-2">📁 Informasi Tersimpan</h4>
+                        <p class="text-sm text-white/80"><strong>Nama Asli:</strong> ${result.original_filename}</p>
+                        <p class="text-sm text-white/80"><strong>File Tersimpan:</strong> ${result.stored_filename}</p>
+                        <p class="text-sm text-white/80"><strong>Diupload:</strong> ${new Date(result.upload_time).toLocaleString('id-ID')}</p>
+                        ${result.stored_file_size ? `<p class="text-sm text-white/80"><strong>Ukuran Tersimpan:</strong> ${result.stored_file_size} bytes</p>` : ''}
+                        <p class="text-sm text-white/80 break-all"><strong>HMAC Tersimpan:</strong><br><code class="bg-white/10 p-1 rounded text-xs font-mono text-white/90">${result.stored_hmac}</code></p>
                     </div>
                     
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h4 class="font-semibold text-gray-700 mb-2">Current File</h4>
-                        <p class="text-sm text-gray-600"><strong>Size:</strong> ${result.file_size} bytes</p>
-                        <p class="text-sm text-gray-600 break-all"><strong>Calculated HMAC:</strong><br><code class="bg-white p-1 rounded text-xs">${result.calculated_hmac}</code></p>
-                        <p class="text-sm mt-2 ${result.is_valid ? 'text-green-600' : 'text-red-600'}">
-                            <strong>${result.is_valid ? '✅ HMAC Match' : '❌ HMAC Mismatch'}</strong>
+                    <div class="info-card p-4 rounded-lg">
+                        <h4 class="font-semibold text-white mb-2">📄 File Saat Ini</h4>
+                        <p class="text-sm text-white/80"><strong>Nama Saat Ini:</strong> ${result.current_filename || 'N/A'}</p>
+                        <p class="text-sm text-white/80"><strong>Ukuran Saat Ini:</strong> ${result.file_size} bytes</p>
+                        ${result.size_difference !== undefined ? `<p class="text-sm text-white/80"><strong>Perbedaan Ukuran:</strong> ±${result.size_difference} bytes</p>` : ''}
+                        <p class="text-sm text-white/80 break-all"><strong>HMAC Dihitung:</strong><br><code class="bg-white/10 p-1 rounded text-xs font-mono text-white/90">${result.calculated_hmac}</code></p>
+                        <p class="text-sm mt-2 ${result.is_valid ? 'text-green-400' : 'text-red-400'}">
+                            <strong>${result.is_valid ? '✅ Konten Terverifikasi' : '❌ Konten Dimodifikasi'}</strong>
                         </p>
                     </div>
-                </div>`;
-    } else {
-        content += `
-                <div class="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                    <p class="font-medium text-blue-800">${result.message}</p>
                 </div>
                 
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h4 class="font-semibold text-gray-700 mb-2">File Information</h4>
-                    <p class="text-sm text-gray-600"><strong>Size:</strong> ${result.file_size} bytes</p>
-                    <p class="text-sm text-gray-600 break-all"><strong>Calculated HMAC:</strong><br><code class="bg-white p-1 rounded text-xs">${result.calculated_hmac}</code></p>
-                    <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <p class="text-sm text-yellow-800">${result.suggestion}</p>
-                    </div>
+                ${result.warning ? `
+                <div class="p-3 bg-orange-500/20 border border-orange-400/30 rounded">
+                    <p class="text-sm text-orange-300"><strong>⚠️ Peringatan:</strong> ${result.warning}</p>
+                </div>` : ''}
+                
+                ${result.note ? `
+                <div class="p-3 bg-blue-500/20 border border-blue-400/30 rounded">
+                    <p class="text-sm text-blue-300"><strong>ℹ️ Catatan:</strong> ${result.note}</p>
+                </div>` : ''}`;
+    } else {
+        content += `
+                <div class="info-card p-4 rounded-lg border border-blue-400/30">
+                    <p class="font-medium text-white">${result.message}</p>
+                </div>
+                
+                <div class="info-card p-4 rounded-lg">
+                    <h4 class="font-semibold text-white mb-2">📄 Informasi File</h4>
+                    <p class="text-sm text-white/80"><strong>Nama File:</strong> ${result.current_filename}</p>
+                    <p class="text-sm text-white/80"><strong>Ukuran:</strong> ${result.file_size} bytes</p>
+                    <p class="text-sm text-white/80 break-all"><strong>HMAC Dihitung:</strong><br><code class="bg-white/10 p-1 rounded text-xs font-mono text-white/90">${result.calculated_hmac}</code></p>
+                    
+                    ${result.suggestion ? `
+                    <div class="mt-3 p-3 bg-yellow-500/20 border border-yellow-400/30 rounded">
+                        <p class="text-sm text-yellow-300"><strong>💡 Saran:</strong> ${result.suggestion}</p>
+                    </div>` : ''}
+                    
+                    ${result.note ? `
+                    <div class="mt-3 p-3 bg-blue-500/20 border border-blue-400/30 rounded">
+                        <p class="text-sm text-blue-300"><strong>ℹ️ Catatan:</strong> ${result.note}</p>
+                    </div>` : ''}
                 </div>`;
     }
     
@@ -351,8 +358,8 @@ function showQuickVerificationResult(result) {
             
             <div class="flex justify-end mt-6">
                 <button onclick="this.closest('.fixed').remove()" 
-                        class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                    Close
+                        class="glass-button px-6 py-2 rounded-lg text-white hover:bg-white/20 transition-colors">
+                    Tutup
                 </button>
             </div>
         </div>`;
@@ -392,49 +399,50 @@ async function loadFiles() {
 function displayFiles(files) {
     if (files.length === 0) {
         filesList.innerHTML = `
-            <div class="text-center py-8 text-gray-500">
+            <div class="text-center py-8 text-white/70">
                 <i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
-                <p>No files uploaded yet</p>
+                <p>Belum ada file yang diupload</p>
             </div>
         `;
         lucide.createIcons();
+        updateFileStats();
         return;
     }
 
     filesList.innerHTML = files.map(file => `
-        <div class="bg-white bg-opacity-60 rounded-xl p-4 border border-white border-opacity-30 hover:bg-opacity-80 transition-all">
+        <div class="info-card rounded-xl p-4 border border-white/20 hover:bg-white/10 transition-all">
             <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-2">
-                        <i data-lucide="file-text" class="w-4 h-4 text-blue-600 flex-shrink-0"></i>
-                        <h4 class="font-medium text-gray-800 truncate">${file.original_filename}</h4>
+                        <i data-lucide="file-text" class="w-4 h-4 text-primary-400 flex-shrink-0"></i>
+                        <h4 class="font-medium text-white truncate">${file.original_filename}</h4>
                     </div>
                     
-                    <div class="text-xs text-gray-600 space-y-1">
-                        <p><span class="font-medium">Size:</span> ${file.file_size} bytes</p>
-                        <p><span class="font-medium">Uploaded:</span> ${new Date(file.upload_time).toLocaleString()}</p>
+                    <div class="text-xs text-white/70 space-y-1">
+                        <p><span class="font-medium">Ukuran:</span> ${file.file_size} bytes</p>
+                        <p><span class="font-medium">Diupload:</span> ${new Date(file.upload_time).toLocaleString('id-ID')}</p>
                         <div class="mt-2">
                             <span class="font-medium">HMAC:</span>
-                            <code class="block mt-1 p-1 bg-gray-100 rounded text-xs font-mono break-all">${file.hmac}</code>
+                            <code class="block mt-1 p-1 bg-white/10 rounded text-xs font-mono break-all text-white/90">${file.hmac}</code>
                         </div>
                     </div>
                 </div>
                 
                 <div class="flex flex-col gap-2 ml-4">
                     <button onclick="downloadFile('${file.filename}')" 
-                            class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 transition-colors flex items-center gap-1">
+                            class="bg-primary-600 text-white px-3 py-1 rounded text-xs hover:bg-primary-700 transition-colors flex items-center gap-1">
                         <i data-lucide="download" class="w-3 h-3"></i>
                         File
                     </button>
                     
                     <button onclick="downloadHmac('${file.filename}')" 
-                            class="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700 transition-colors flex items-center gap-1">
+                            class="bg-accent-600 text-white px-3 py-1 rounded text-xs hover:bg-accent-700 transition-colors flex items-center gap-1">
                         <i data-lucide="key" class="w-3 h-3"></i>
                         HMAC
                     </button>
                     
                     <button onclick="simulateTamper('${file.filename}')" 
-                            class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors flex items-center gap-1">
+                            class="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700 transition-colors flex items-center gap-1">
                         <i data-lucide="alert-triangle" class="w-3 h-3"></i>
                         Tamper
                     </button>
@@ -444,12 +452,19 @@ function displayFiles(files) {
                         <i data-lucide="copy" class="w-3 h-3"></i>
                         Copy
                     </button>
+                    
+                    <button onclick="handleDeleteFile('${file.filename}', '${file.original_filename}')" 
+                            class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        Delete
+                    </button>
                 </div>
             </div>
         </div>
     `).join('');
 
     lucide.createIcons();
+    updateFileStats();
 }
 
 // Download file
@@ -600,3 +615,185 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Handle delete individual file
+async function handleDeleteFile(filename, originalFilename) {
+    // Show confirmation dialog
+    const confirmed = await showConfirmDialog(
+        'Delete File',
+        `Are you sure you want to delete "${originalFilename}"?`,
+        'This action cannot be undone.',
+        'Delete',
+        'danger'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`${API_BASE}/delete/${filename}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(result.message, 'success');
+            loadFiles(); // Refresh file list
+        } else {
+            showToast(result.error || 'Delete failed', 'error');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Delete failed: Network error', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Handle reset all files
+async function handleResetAllFiles() {
+    // Show confirmation dialog
+    const confirmed = await showConfirmDialog(
+        'Reset Semua File',
+        'Apakah Anda yakin ingin menghapus SEMUA file yang diupload?',
+        'Ini akan menghapus secara permanen semua file dan reset HMAC store. Tindakan ini tidak dapat dibatalkan.',
+        'Reset Semua',
+        'danger'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`${API_BASE}/reset-all`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(result.message, 'success');
+            loadFiles(); // Refresh file list
+            updateFileStats(); // Update stats
+        } else {
+            showToast(result.error || 'Reset gagal', 'error');
+        }
+    } catch (error) {
+        console.error('Reset error:', error);
+        showToast('Reset gagal: Network error', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Update file statistics
+async function updateFileStats() {
+    try {
+        const response = await fetch(`${API_BASE}/files`);
+        const result = await response.json();
+        
+        if (result.files) {
+            const fileCount = result.files.length;
+            
+            // Update stats in Home tab
+            const totalFilesElement = document.getElementById('totalFiles');
+            if (totalFilesElement) {
+                totalFilesElement.textContent = fileCount;
+            }
+            
+            // Update stats in Manager tab
+            const totalFilesManagerElement = document.getElementById('totalFilesManager');
+            if (totalFilesManagerElement) {
+                totalFilesManagerElement.textContent = fileCount;
+            }
+        }
+    } catch (error) {
+        console.error('Error updating file stats:', error);
+    }
+}
+
+// Show confirmation dialog
+function showConfirmDialog(title, message, detail, confirmText, type = 'warning') {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        
+        const typeColors = {
+            'danger': {
+                icon: 'alert-triangle',
+                iconColor: 'text-red-600',
+                buttonColor: 'bg-red-600 hover:bg-red-700',
+                borderColor: 'border-red-200'
+            },
+            'warning': {
+                icon: 'alert-triangle',
+                iconColor: 'text-yellow-600',
+                buttonColor: 'bg-yellow-600 hover:bg-yellow-700',
+                borderColor: 'border-yellow-200'
+            }
+        };
+        
+        const config = typeColors[type] || typeColors.warning;
+        
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+                <div class="flex items-center gap-3 mb-4">
+                    <i data-lucide="${config.icon}" class="w-8 h-8 ${config.iconColor}"></i>
+                    <h3 class="text-xl font-bold text-gray-800">${title}</h3>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-gray-700 font-medium mb-2">${message}</p>
+                    <p class="text-sm text-gray-600">${detail}</p>
+                </div>
+                
+                <div class="flex gap-3 justify-end">
+                    <button id="cancelBtn" 
+                            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button id="confirmBtn" 
+                            class="px-4 py-2 ${config.buttonColor} text-white rounded-lg transition-colors">
+                        ${confirmText}
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        lucide.createIcons();
+        
+        const cancelBtn = modal.querySelector('#cancelBtn');
+        const confirmBtn = modal.querySelector('#confirmBtn');
+        
+        cancelBtn.addEventListener('click', () => {
+            modal.remove();
+            resolve(false);
+        });
+        
+        confirmBtn.addEventListener('click', () => {
+            modal.remove();
+            resolve(true);
+        });
+        
+        // Close on escape
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+                resolve(false);
+            }
+        });
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+                resolve(false);
+            }
+        });
+    });
+}
