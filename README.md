@@ -1,9 +1,9 @@
 # HMAC File Uploader & Verifier
 
-A secure web-based application that demonstrates file integrity verification using HMAC-SHA256. This project allows users to upload text files, generate HMAC signatures, and verify file authenticity—showcasing real-world cryptographic security practices.
+Aplikasi web yang aman untuk mendemonstrasikan verifikasi integritas file menggunakan HMAC-SHA256. Proyek ini memungkinkan pengguna untuk mengunggah file teks, menghasilkan tanda tangan HMAC, dan memverifikasi keaslian file—menunjukkan praktik keamanan kriptografi dunia nyata.
 
 **Final Project - Sistem Keamanan Kriptografi**  
-**Kelompok 3 - Institut Teknologi Sepuluh Nopember**
+**Kelompok 3 - Institut Teknologi Sepuluh Nopember**  
 **Tahun Akademik 2025**
 
 | Nama                | NRP        |
@@ -17,72 +17,139 @@ A secure web-based application that demonstrates file integrity verification usi
 | Nabiel Nizar Anwari | 5027231087 |
 | Veri Rahman         | 5027231088 |
 
+---
+
+## Fitur-Fitur
+
+### **Upload File & Generasi HMAC**
+- Upload file `.txt` dengan proteksi kunci rahasia
+- Generasi HMAC-SHA256 otomatis untuk file yang diunggah
+- Penyimpanan aman file dan HMAC yang sesuai
+- Penamaan file unik untuk mencegah konflik
+
+### **Verifikasi Integritas File**
+- Upload ulang file untuk memverifikasi keasliannya
+- Bandingkan HMAC yang dihitung dengan HMAC yang disimpan/diberikan
+- Hasil verifikasi real-time dengan perbandingan detail
+- Perbandingan waktu konstan untuk mencegah serangan timing
+
+### **Quick Integrity Check (Pemeriksaan Cepat)**
+- **Deteksi Otomatis**: Sistem otomatis mencari file yang cocok berdasarkan konten
+- **Deteksi File Dimodifikasi**: Logika cerdas untuk mendeteksi file yang telah diubah
+- **Multi-Level Detection**: Berbagai tingkat deteksi untuk akurasi maksimal
+
+### **Manajemen File**
+- Lihat semua file yang diunggah dengan metadata
+- Download file asli dan file HMAC
+- Salin nilai HMAC ke clipboard
+- Hapus file individual atau reset semua file
+- Daftar file responsif dengan UI modern
+
+### **Simulasi Tampering Edukasi**
+- Simulasi perusakan file untuk tujuan edukasi
+- Demonstrasi bagaimana HMAC mendeteksi modifikasi file
+- Sempurna untuk mempelajari konsep integritas data
 
 ---
 
-## Features
+## Logika Deteksi File yang Dimodifikasi
 
-### **File Upload & HMAC Generation**
-- Upload `.txt` files with secret key protection
-- Automatic HMAC-SHA256 generation for uploaded files
-- Secure storage of files and their corresponding HMACs
-- Unique file naming to prevent conflicts
+Sistem kami menggunakan algoritma deteksi multi-level yang cerdas untuk mengidentifikasi file yang telah dimodifikasi:
 
-### **File Integrity Verification**
-- Re-upload files to verify their authenticity
-- Compare calculated HMAC with stored/provided HMAC
-- Real-time verification results with detailed comparison
-- Constant-time comparison to prevent timing attacks
+### **1. Exact Content Match (Prioritas Tertinggi)**
+```
+HMAC File Saat Ini == HMAC File Tersimpan
+```
+- **Hasil**: ✅ File asli, tidak ada perubahan
+- **Metode**: Perbandingan HMAC langsung
+- **Akurasi**: 100% - file identik
 
-### **File Management**
-- View all uploaded files with metadata
-- Download original files and HMAC files
-- Copy HMAC values to clipboard
-- Responsive file list with modern UI
+### **2. Filename Match dengan Content Berbeda**
+```
+Nama File == Nama File Tersimpan
+HMAC File Saat Ini != HMAC File Tersimpan
+```
+- **Hasil**: ⚠️ File dengan nama sama telah dimodifikasi
+- **Metode**: Cocokkan nama file, bandingkan HMAC
+- **Indikasi**: File asli telah diubah isinya
 
-### **Educational Tampering Simulation**
-- Simulate file tampering for educational purposes
-- Demonstrate how HMAC detects file modifications
-- Perfect for learning about data integrity concepts
+### **3. Similar File Detection (Deteksi File Serupa)**
+```
+|Ukuran File Saat Ini - Ukuran File Tersimpan| ≤ 50 bytes
+HMAC File Saat Ini != HMAC File Tersimpan
+```
+- **Hasil**: ⚠️ Kemungkinan file telah dimodifikasi
+- **Metode**: Perbandingan ukuran file dengan toleransi
+- **Indikasi**: File dengan karakteristik serupa namun konten berbeda
 
-### **CLI Verification Tool**
-- Standalone command-line verification utility
-- Generate HMAC for local files
-- Verify files using stored HMAC files
-- Cross-platform compatibility
+### **4. No Match (Tidak Ada Kecocokan)**
+```
+Tidak ada kecocokan nama file, HMAC, atau ukuran
+```
+- **Hasil**: 🔍 File baru yang belum pernah diunggah
+- **Metode**: Tidak ditemukan dalam database
+- **Saran**: Upload file ini terlebih dahulu
+
+### **Algoritma Deteksi**
+```python
+def detect_file_status(current_file, secret_key, stored_files):
+    current_hmac = generate_hmac(current_file.content, secret_key)
+    
+    # 1. Cek exact content match
+    for stored_file in stored_files:
+        if stored_file.hmac == current_hmac:
+            return "EXACT_MATCH", stored_file
+    
+    # 2. Cek filename match
+    for stored_file in stored_files:
+        if stored_file.original_name == current_file.name:
+            return "FILENAME_MATCH_MODIFIED", stored_file
+    
+    # 3. Cek similar size (possible modification)
+    for stored_file in stored_files:
+        size_diff = abs(stored_file.size - current_file.size)
+        if size_diff <= 50:  # Toleransi 50 bytes
+            return "POSSIBLY_MODIFIED", stored_file
+    
+    # 4. No match found
+    return "NEW_FILE", None
+```
+
+### **Keunggulan Sistem Deteksi**
+- **Content-First Approach**: Prioritas pada konten, bukan nama file
+- **Tolerant to Renaming**: File yang diganti namanya tetap terdeteksi jika kontennya sama
+- **Smart Modification Detection**: Mendeteksi modifikasi berdasarkan karakteristik file
+- **Educational Value**: Membantu pemahaman tentang integritas data
 
 ---
 
-## Architecture
+## Arsitektur
 
 ```
 hmac-file-uploader/
 ├── app.py                 # Flask backend API
-├── hmac_utils.py          # HMAC cryptographic functions
-├── requirements.txt       # Python dependencies
-├── hmac_store.json        # File-to-HMAC mapping storage
-├── uploads/               # Uploaded files directory
+├── hmac_utils.py          # Fungsi kriptografi HMAC
+├── requirements.txt       # Dependencies Python
+├── hmac_store.json        # Penyimpanan mapping file-ke-HMAC
+├── uploads/               # Direktori file yang diunggah
 ├── templates/
-│   └── index.html         # Modern web interface
+│   └── index.html         # Interface web modern
 ├── static/
-│   └── script.js          # Frontend JavaScript logic
-├── cli/
-│   └── verify_file.py     # Command-line verification tool
-└── README.md              # This documentation
+│   └── script.js          # Logika JavaScript frontend
+└── README.md              # Dokumentasi ini
 ```
 
 ---
 
-## Installation & Setup
+## Instalasi & Setup
 
-### Prerequisites
-- Python 3.7 or higher
-- Modern web browser
-- Terminal/Command Prompt
+### Prasyarat
+- Python 3.7 atau lebih tinggi
+- Browser web modern
 
-### 1. Clone or Download
+### 1. Clone atau Download
 ```bash
-# If you have the project files, navigate to the directory
+# Jika Anda memiliki file proyek, navigasi ke direktori
 cd hmac-file-uploader
 ```
 
@@ -91,128 +158,181 @@ cd hmac-file-uploader
 pip install -r requirements.txt
 ```
 
-### 3. Run the Application
+### 3. Jalankan Aplikasi
 ```bash
 python app.py
 ```
 
-### 4. Access the Web Interface
-Open your browser and navigate to:
+### 4. Akses Interface Web
+Buka browser Anda dan navigasi ke:
 ```
 http://localhost:5000
 ```
 
 ---
 
-## Usage Guide
+## Panduan Penggunaan
 
-### Web Interface
+### Interface Web
 
-#### **Upload a File**
-1. Select a `.txt` file using the file picker or drag & drop
-2. Enter a secret key (remember this for verification!)
-3. Click "Upload & Generate HMAC"
-4. The system will generate and store the HMAC automatically
+#### **Upload File**
+1. Pilih file `.txt` menggunakan file picker atau drag & drop
+2. Masukkan kunci rahasia (ingat ini untuk verifikasi!)
+3. Klik "Upload & Generate HMAC"
+4. Sistem akan menghasilkan dan menyimpan HMAC secara otomatis
 
-#### **Verify File Integrity**
-1. Select the file you want to verify
-2. Enter the original secret key
-3. Provide the expected HMAC value (copy from file list)
-4. Click "Verify File Integrity"
-5. View detailed verification results
+#### **Quick Integrity Check**
+1. Pilih file yang ingin diperiksa (file yang pernah di-download)
+2. Masukkan kunci rahasia yang sama
+3. Klik "Quick Integrity Check"
+4. Sistem akan otomatis mencari dan membandingkan dengan database
+5. Lihat hasil deteksi yang detail
 
-#### **Download Files**
-- **File**: Download the original uploaded file
-- **HMAC**: Download a `.hmac` file containing metadata
-- **Copy**: Copy HMAC value to clipboard
-- **Tamper**: Simulate file modification (educational)
+#### **Verifikasi Integritas File Manual**
+1. Pilih file yang ingin diverifikasi
+2. Masukkan kunci rahasia asli
+3. Berikan nilai HMAC yang diharapkan (salin dari daftar file)
+4. Klik "Verify File Integrity"
+5. Lihat hasil verifikasi yang detail
 
-### CLI Tool
+#### **Download File**
+- **File**: Download file asli yang diunggah
+- **HMAC**: Download file `.hmac` yang berisi metadata
+- **Copy**: Salin nilai HMAC ke clipboard
+- **Tamper**: Simulasi modifikasi file (edukasi)
+- **Delete**: Hapus file individual dari server
 
-#### **Generate HMAC for a file**
-```bash
-python cli/verify_file.py document.txt mysecretkey
-```
-
-#### **Verify file with HMAC value**
-```bash
-python cli/verify_file.py document.txt mysecretkey ABC123DEF456...
-```
-
-#### **Verify using HMAC file**
-```bash
-python cli/verify_file.py document.txt --hmac-file document.txt.hmac
-```
-
-#### **CLI Options**
-- `--quiet` or `-q`: Minimal output mode
-- `--hmac-file`: Use `.hmac` file for verification
-- `--help`: Show detailed help information
+#### **Reset All Files**
+- Klik tombol "Reset All" untuk menghapus semua file dan reset database HMAC
 
 ---
 
-## Security Features
+## Fitur Keamanan
 
 ### **HMAC-SHA256**
-- Industry-standard cryptographic hash function
-- Combines SHA-256 with secret key authentication
-- Provides both integrity and authenticity verification
+- Fungsi hash kriptografi standar industri
+- Menggabungkan SHA-256 dengan autentikasi kunci rahasia
+- Menyediakan verifikasi integritas dan keaslian
 
-### **Constant-Time Comparison**
+### **Perbandingan Waktu Konstan**
 ```python
 hmac.compare_digest(calculated_hmac, expected_hmac)
 ```
-- Prevents timing attack vulnerabilities
-- Secure comparison of HMAC values
+- Mencegah kerentanan serangan timing
+- Perbandingan aman nilai HMAC
 
-### **Input Validation**
-- File type restrictions (`.txt` only)
-- Secure filename handling
-- Input sanitization and validation
+### **Validasi Input**
+- Pembatasan jenis file (hanya `.txt`)
+- Penanganan nama file yang aman
+- Sanitasi dan validasi input
 
-### **Unique File Storage**
-- UUID-based filename generation
-- Prevents file naming conflicts
-- Secure file path handling
+### **Penyimpanan File Unik**
+- Generasi nama file berbasis UUID
+- Mencegah konflik penamaan file
+- Penanganan path file yang aman
 
 ---
 
 ## 🛡️ API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Serve main web interface |
-| `POST` | `/api/upload` | Upload file and generate HMAC |
-| `GET` | `/api/files` | List all uploaded files |
-| `GET` | `/api/download/<filename>` | Download original file |
-| `GET` | `/api/download-hmac/<filename>` | Download HMAC metadata file |
-| `POST` | `/api/verify` | Verify file integrity |
-| `POST` | `/api/simulate-tamper/<filename>` | Simulate file tampering |
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| `GET` | `/` | Tampilkan interface web utama |
+| `POST` | `/api/upload` | Upload file dan generate HMAC |
+| `GET` | `/api/files` | List semua file yang diunggah |
+| `GET` | `/api/download/<filename>` | Download file asli |
+| `GET` | `/api/download-hmac/<filename>` | Download file metadata HMAC |
+| `POST` | `/api/verify` | Verifikasi integritas file (manual) |
+| `POST` | `/api/quick-verify` | Verifikasi integritas file (otomatis) |
+| `DELETE` | `/api/delete/<filename>` | Hapus file individual |
+| `POST` | `/api/reset-all` | Reset semua file dan database |
+| `POST` | `/api/simulate-tamper/<filename>` | Simulasi perusakan file |
 
 ---
 
-
-## Technical Implementation
+## Implementasi Teknis
 
 ### **Backend (Flask)**
-- RESTful API design
-- File upload handling with security checks
-- HMAC generation and verification
-- JSON-based data storage
-- Error handling and validation
+- Desain API RESTful
+- Penanganan upload file dengan pemeriksaan keamanan
+- Generasi dan verifikasi HMAC
+- Penyimpanan data berbasis JSON
+- Error handling dan validasi
 
 ### **Frontend (HTML/CSS/JS)**
-- Responsive design with Tailwind CSS
-- Modern UI with Lucide icons
-- Drag & drop file upload
-- Real-time feedback and notifications
-- Interactive verification results
+- Desain responsif dengan Tailwind CSS
+- UI modern dengan ikon Lucide
+- Upload file drag & drop
+- Feedback dan notifikasi real-time
+- Hasil verifikasi interaktif
 
-### **Cryptography**
-- HMAC-SHA256 implementation
-- Base64 encoding for storage
-- Constant-time comparison
-- Secure key handling
+### **Kriptografi**
+- Implementasi HMAC-SHA256
+- Encoding Base64 untuk penyimpanan
+- Perbandingan waktu konstan
+- Penanganan kunci yang aman
+
+### **Algoritma Deteksi Modifikasi**
+- Multi-level detection system
+- Content-first approach untuk akurasi
+- Toleransi terhadap perubahan nama file
+- Deteksi berdasarkan karakteristik file
+
+---
+
+## Contoh Penggunaan
+
+### **Skenario 1: File Asli**
+```
+1. Upload file "document.txt" dengan kunci "mykey123"
+2. Download file tersebut (nama bisa berubah)
+3. Quick Integrity Check dengan file yang di-download
+4. Hasil: ✅ File integrity verified!
+```
+
+### **Skenario 2: File Dimodifikasi**
+```
+1. Upload file "document.txt" dengan kunci "mykey123"
+2. Download file tersebut
+3. Edit isi file (tambah/hapus teks)
+4. Quick Integrity Check dengan file yang sudah diedit
+5. Hasil: ⚠️ File Modified! Same name but content changed.
+```
+
+### **Skenario 3: File Baru**
+```
+1. Buat file baru yang belum pernah di-upload
+2. Quick Integrity Check dengan file baru
+3. Hasil: 🔍 No matching file found in our database.
+```
+
+---
+
+## Keunggulan Sistem
+
+### **Keamanan Tinggi**
+- HMAC-SHA256 untuk integritas data
+- Constant-time comparison mencegah timing attacks
+- Validasi input yang ketat
+- Penyimpanan file yang aman
+
+### **User Experience**
+- Interface yang intuitif dan modern
+- Feedback real-time untuk semua operasi
+- Multiple methods untuk verifikasi
+- Responsive design untuk semua device
+
+### **Educational Value**
+- Demonstrasi praktis konsep kriptografi
+- Simulasi tampering untuk pembelajaran
+- Berbagai tingkat deteksi file modification
+- Interface web yang interaktif untuk eksperimen
+
+### **Flexibility**
+- Interface web yang komprehensif
+- Multiple verification methods
+- File management features
+- Extensible architecture
 
 ---
 
