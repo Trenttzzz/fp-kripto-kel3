@@ -180,48 +180,6 @@ def download_hmac(filename):
         return jsonify({'error': f'HMAC download failed: {str(e)}'}), 500
 
 
-@app.route('/api/verify', methods=['POST'])
-def verify_file():
-    """Verify file integrity using HMAC."""
-    try:
-        # Check if file, key, and HMAC are provided
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-        
-        file = request.files['file']
-        secret_key = request.form.get('secret_key')
-        expected_hmac = request.form.get('hmac')
-        
-        if not secret_key:
-            return jsonify({'error': 'Secret key is required'}), 400
-        
-        if not expected_hmac:
-            return jsonify({'error': 'HMAC value is required'}), 400
-        
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-        
-        # Read file content
-        file_content = file.read()
-        
-        # Verify HMAC
-        is_valid = verify_hmac(file_content, secret_key, expected_hmac)
-        
-        # Calculate current HMAC for comparison
-        current_hmac = generate_hmac(file_content, secret_key)
-        
-        return jsonify({
-            'success': True,
-            'is_valid': is_valid,
-            'message': 'File integrity verified ✅' if is_valid else 'File integrity check failed ❌',
-            'provided_hmac': expected_hmac,
-            'calculated_hmac': current_hmac,
-            'file_size': len(file_content)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Verification failed: {str(e)}'}), 500
-
 
 @app.route('/api/simulate-tamper/<filename>', methods=['POST'])
 def simulate_tamper(filename):

@@ -1,6 +1,5 @@
 // DOM Elements
 const uploadForm = document.getElementById('uploadForm');
-const verifyForm = document.getElementById('verifyForm');
 const quickVerifyForm = document.getElementById('quickVerifyForm');
 const filesList = document.getElementById('filesList');
 const refreshFiles = document.getElementById('refreshFiles');
@@ -20,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // Set up event listeners
 function setupEventListeners() {
     uploadForm.addEventListener('submit', handleFileUpload);
-    verifyForm.addEventListener('submit', handleFileVerification);
     quickVerifyForm.addEventListener('submit', handleQuickVerification);
     refreshFiles.addEventListener('click', loadFiles);
     resetAllFiles.addEventListener('click', handleResetAllFiles);
@@ -126,63 +124,6 @@ async function handleFileUpload(event) {
 }
 
 // Handle file verification
-async function handleFileVerification(event) {
-    event.preventDefault();
-    
-    const fileInput = document.getElementById('verifyFileInput');
-    const secretKey = document.getElementById('verifySecretKey').value;
-    const expectedHmac = document.getElementById('expectedHmac').value;
-    
-    if (!fileInput.files[0]) {
-        showToast('Please select a file to verify', 'warning');
-        return;
-    }
-    
-    if (!secretKey) {
-        showToast('Please enter the secret key', 'warning');
-        return;
-    }
-    
-    if (!expectedHmac) {
-        showToast('Please enter the expected HMAC', 'warning');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-    formData.append('secret_key', secretKey);
-    formData.append('hmac', expectedHmac);
-
-    try {
-        showLoading();
-        
-        const response = await fetch(`${API_BASE}/verify`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            const message = result.is_valid ? 
-                'File integrity verified ✅ File is authentic!' : 
-                'File integrity check failed ❌ File may be tampered!';
-            
-            showToast(message, result.is_valid ? 'success' : 'error');
-            
-            // Show detailed comparison
-            showVerificationResult(result);
-        } else {
-            showToast(result.error || 'Verification failed', 'error');
-        }
-    } catch (error) {
-        console.error('Verification error:', error);
-        showToast('Verification failed: Network error', 'error');
-    } finally {
-        hideLoading();
-    }
-}
-
 // Handle quick file verification
 async function handleQuickVerification(event) {
     event.preventDefault();
@@ -256,62 +197,6 @@ async function handleQuickVerification(event) {
 }
 
 // Show verification result in detail
-function showVerificationResult(result) {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-    modal.innerHTML = `
-        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-96 overflow-y-auto">
-            <div class="flex items-center gap-3 mb-4">
-                <i data-lucide="${result.is_valid ? 'check-circle' : 'x-circle'}" 
-                   class="w-8 h-8 ${result.is_valid ? 'text-green-600' : 'text-red-600'}"></i>
-                <h3 class="text-2xl font-bold text-gray-800">Verification Result</h3>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="p-4 rounded-lg ${result.is_valid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
-                    <p class="font-medium ${result.is_valid ? 'text-green-800' : 'text-red-800'}">
-                        ${result.message}
-                    </p>
-                </div>
-                
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Expected HMAC:</label>
-                        <code class="block p-2 bg-gray-100 rounded text-xs font-mono break-all">${result.provided_hmac}</code>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Calculated HMAC:</label>
-                        <code class="block p-2 bg-gray-100 rounded text-xs font-mono break-all">${result.calculated_hmac}</code>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">File Size:</label>
-                        <span class="text-gray-600">${result.file_size} bytes</span>
-                    </div>
-                </div>
-                
-                <div class="flex justify-end gap-3 pt-4">
-                    <button onclick="this.closest('.fixed').remove()" 
-                            class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-    lucide.createIcons();
-    
-    // Close on outside click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
 // Show quick verification result in detail
 function showQuickVerificationResult(result) {
     const modal = document.createElement('div');

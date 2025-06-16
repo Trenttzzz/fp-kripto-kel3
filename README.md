@@ -27,12 +27,6 @@ Aplikasi web yang aman untuk mendemonstrasikan verifikasi integritas file menggu
 - Penyimpanan aman file dan HMAC yang sesuai
 - Penamaan file unik untuk mencegah konflik
 
-### **Verifikasi Integritas File**
-- Upload ulang file untuk memverifikasi keasliannya
-- Bandingkan HMAC yang dihitung dengan HMAC yang disimpan/diberikan
-- Hasil verifikasi real-time dengan perbandingan detail
-- Perbandingan waktu konstan untuk mencegah serangan timing
-
 ### **Quick Integrity Check (Pemeriksaan Cepat)**
 - **Deteksi Otomatis**: Sistem otomatis mencari file yang cocok berdasarkan konten
 - **Deteksi File Dimodifikasi**: Logika cerdas untuk mendeteksi file yang telah diubah
@@ -188,13 +182,6 @@ http://localhost:5000
 4. Sistem akan otomatis mencari dan membandingkan dengan database
 5. Lihat hasil deteksi yang detail
 
-#### **Verifikasi Integritas File Manual**
-1. Pilih file yang ingin diverifikasi
-2. Masukkan kunci rahasia asli
-3. Berikan nilai HMAC yang diharapkan (salin dari daftar file)
-4. Klik "Verify File Integrity"
-5. Lihat hasil verifikasi yang detail
-
 #### **Download File**
 - **File**: Download file asli yang diunggah
 - **HMAC**: Download file `.hmac` yang berisi metadata
@@ -233,7 +220,7 @@ hmac.compare_digest(calculated_hmac, expected_hmac)
 
 ---
 
-## 🛡️ API Endpoints
+## API Endpoints
 
 | Method | Endpoint | Deskripsi |
 |--------|----------|-----------|
@@ -242,7 +229,6 @@ hmac.compare_digest(calculated_hmac, expected_hmac)
 | `GET` | `/api/files` | List semua file yang diunggah |
 | `GET` | `/api/download/<filename>` | Download file asli |
 | `GET` | `/api/download-hmac/<filename>` | Download file metadata HMAC |
-| `POST` | `/api/verify` | Verifikasi integritas file (manual) |
 | `POST` | `/api/quick-verify` | Verifikasi integritas file (otomatis) |
 | `DELETE` | `/api/delete/<filename>` | Hapus file individual |
 | `POST` | `/api/reset-all` | Reset semua file dan database |
@@ -305,34 +291,6 @@ hmac.compare_digest(calculated_hmac, expected_hmac)
 2. Quick Integrity Check dengan file baru
 3. Hasil: 🔍 No matching file found in our database.
 ```
-
----
-
-## Keunggulan Sistem
-
-### **Keamanan Tinggi**
-- HMAC-SHA256 untuk integritas data
-- Constant-time comparison mencegah timing attacks
-- Validasi input yang ketat
-- Penyimpanan file yang aman
-
-### **User Experience**
-- Interface yang intuitif dan modern
-- Feedback real-time untuk semua operasi
-- Multiple methods untuk verifikasi
-- Responsive design untuk semua device
-
-### **Educational Value**
-- Demonstrasi praktis konsep kriptografi
-- Simulasi tampering untuk pembelajaran
-- Berbagai tingkat deteksi file modification
-- Interface web yang interaktif untuk eksperimen
-
-### **Flexibility**
-- Interface web yang komprehensif
-- Multiple verification methods
-- File management features
-- Extensible architecture
 
 ---
 
