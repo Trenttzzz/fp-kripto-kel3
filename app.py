@@ -284,6 +284,7 @@ def quick_verify_file():
         # Search for matching file by HMAC (content-based matching)
         found_match = None
         filename_match = None
+        similar_files = []
         
         for stored_filename, info in hmac_store.items():
             # First priority: Check if HMAC matches (content is identical)
@@ -302,6 +303,14 @@ def quick_verify_file():
                     'info': info,
                     'match_type': 'filename_match_content_different'
                 }
+            
+            # Third priority: Check for similar files (same size, could be modified)
+            if abs(info['file_size'] - len(file_content)) <= 50:  # Within 50 bytes difference
+                similar_files.append({
+                    'filename': stored_filename,
+                    'info': info,
+                    'size_diff': abs(info['file_size'] - len(file_content))
+                })
         
         # Determine result based on matches found
         if found_match:
@@ -327,14 +336,35 @@ def quick_verify_file():
                 'is_valid': False,
                 'match_found': True,
                 'match_type': 'filename_only',
-                'message': f'❌ File has been modified! Found stored file with same name but different content.',
+                'message': f'⚠️ FILE MODIFIED! Found stored file with same name but different content.',
                 'stored_filename': filename_match['filename'],
                 'original_filename': filename_match['info']['original_filename'],
                 'upload_time': filename_match['info']['upload_time'],
                 'stored_hmac': filename_match['info']['hmac'],
                 'calculated_hmac': current_hmac,
                 'file_size': len(file_content),
-                'note': 'Filename matches but content is different (HMAC mismatch).'
+                'note': 'Filename matches stored file but content has been modified (HMAC mismatch).',
+                'warning': 'This file appears to be a modified version of a file in our database.'
+            })
+        elif similar_files:
+            # Similar file size - possibly modified file
+            best_match = min(similar_files, key=lambda x: x['size_diff'])
+            return jsonify({
+                'success': True,
+                'is_valid': False,
+                'match_found': True,
+                'match_type': 'possibly_modified',
+                'message': f'⚠️ POSSIBLE FILE MODIFICATION! Found similar file with close size.',
+                'stored_filename': best_match['filename'],
+                'original_filename': best_match['info']['original_filename'],
+                'upload_time': best_match['info']['upload_time'],
+                'stored_hmac': best_match['info']['hmac'],
+                'calculated_hmac': current_hmac,
+                'file_size': len(file_content),
+                'stored_file_size': best_match['info']['file_size'],
+                'size_difference': best_match['size_diff'],
+                'note': f'Found a stored file with similar size (±{best_match["size_diff"]} bytes). This might be a modified version.',
+                'warning': 'Content verification failed but file characteristics suggest this might be a modified version of a stored file.'
             })
         else:
             # No match found - completely new file
@@ -347,8 +377,8 @@ def quick_verify_file():
                 'current_filename': original_filename,
                 'calculated_hmac': current_hmac,
                 'file_size': len(file_content),
-                'suggestion': 'This appears to be a new file. Upload it first to store its HMAC for future verification.',
-                'note': 'Neither content nor filename matches any stored files.'
+                'suggestion': 'This appears to be a completely new file. Upload it first to store its HMAC for future verification.',
+                'note': 'Neither content, filename, nor file characteristics match any stored files.'
             })
         
     except Exception as e:

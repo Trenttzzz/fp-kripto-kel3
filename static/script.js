@@ -216,14 +216,32 @@ async function handleQuickVerification(event) {
 
         if (result.success) {
             if (result.match_found) {
-                const message = result.is_valid ? 
-                    '✅ File integrity verified! This file matches our stored version.' : 
-                    '❌ File has been modified! Content differs from stored version.';
+                let message = '';
+                let toastType = '';
                 
-                showToast(message, result.is_valid ? 'success' : 'error');
+                if (result.is_valid) {
+                    message = '✅ File integrity verified! This file matches our stored version.';
+                    toastType = 'success';
+                } else {
+                    switch (result.match_type) {
+                        case 'filename_only':
+                            message = '⚠️ File Modified! Same name but content changed.';
+                            toastType = 'warning';
+                            break;
+                        case 'possibly_modified':
+                            message = '⚠️ Possible Modification! Similar file found with different content.';
+                            toastType = 'warning';
+                            break;
+                        default:
+                            message = '❌ File has been modified! Content differs from stored version.';
+                            toastType = 'error';
+                    }
+                }
+                
+                showToast(message, toastType);
                 showQuickVerificationResult(result);
             } else {
-                showToast('🔍 No stored version found. This might be a new file.'),
+                showToast('🔍 No stored version found. This might be a new file.', 'info');
                 showQuickVerificationResult(result);
             }
         } else {
@@ -309,13 +327,33 @@ function showQuickVerificationResult(result) {
             <div class="space-y-4">`;
     
     if (result.match_found) {
-        const statusColor = result.is_valid ? 'green' : 'red';
-        const matchTypeText = result.match_type === 'content' ? 
-            '🎯 Content-based match (regardless of filename)' : 
-            '📄 Filename-based match (but content differs)';
+        let statusColor, matchTypeText, borderColor;
+        
+        if (result.is_valid) {
+            statusColor = 'green';
+            borderColor = 'border-green-200';
+            matchTypeText = '🎯 Content-based match (regardless of filename)';
+        } else {
+            switch (result.match_type) {
+                case 'filename_only':
+                    statusColor = 'orange';
+                    borderColor = 'border-orange-200';
+                    matchTypeText = '📄 Filename match but content modified';
+                    break;
+                case 'possibly_modified':
+                    statusColor = 'yellow';
+                    borderColor = 'border-yellow-200';
+                    matchTypeText = '⚠️ Similar file characteristics detected (possible modification)';
+                    break;
+                default:
+                    statusColor = 'red';
+                    borderColor = 'border-red-200';
+                    matchTypeText = '❌ Content verification failed';
+            }
+        }
             
         content += `
-                <div class="p-4 rounded-lg bg-${statusColor}-50 border border-${statusColor}-200">
+                <div class="p-4 rounded-lg bg-${statusColor}-50 ${borderColor}">
                     <p class="font-medium text-${statusColor}-800">${result.message}</p>
                     <p class="text-sm text-${statusColor}-700 mt-2">${matchTypeText}</p>
                 </div>
@@ -326,19 +364,26 @@ function showQuickVerificationResult(result) {
                         <p class="text-sm text-gray-600"><strong>Original Name:</strong> ${result.original_filename}</p>
                         <p class="text-sm text-gray-600"><strong>Stored File:</strong> ${result.stored_filename}</p>
                         <p class="text-sm text-gray-600"><strong>Uploaded:</strong> ${new Date(result.upload_time).toLocaleString()}</p>
+                        ${result.stored_file_size ? `<p class="text-sm text-gray-600"><strong>Stored Size:</strong> ${result.stored_file_size} bytes</p>` : ''}
                         <p class="text-sm text-gray-600 break-all"><strong>Stored HMAC:</strong><br><code class="bg-white p-1 rounded text-xs font-mono">${result.stored_hmac}</code></p>
                     </div>
                     
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h4 class="font-semibold text-gray-700 mb-2">📄 Current File</h4>
                         <p class="text-sm text-gray-600"><strong>Current Name:</strong> ${result.current_filename || 'N/A'}</p>
-                        <p class="text-sm text-gray-600"><strong>Size:</strong> ${result.file_size} bytes</p>
+                        <p class="text-sm text-gray-600"><strong>Current Size:</strong> ${result.file_size} bytes</p>
+                        ${result.size_difference !== undefined ? `<p class="text-sm text-gray-600"><strong>Size Difference:</strong> ±${result.size_difference} bytes</p>` : ''}
                         <p class="text-sm text-gray-600 break-all"><strong>Calculated HMAC:</strong><br><code class="bg-white p-1 rounded text-xs font-mono">${result.calculated_hmac}</code></p>
                         <p class="text-sm mt-2 ${result.is_valid ? 'text-green-600' : 'text-red-600'}">
                             <strong>${result.is_valid ? '✅ Content Verified' : '❌ Content Modified'}</strong>
                         </p>
                     </div>
                 </div>
+                
+                ${result.warning ? `
+                <div class="p-3 bg-orange-50 border border-orange-200 rounded">
+                    <p class="text-sm text-orange-800"><strong>⚠️ Warning:</strong> ${result.warning}</p>
+                </div>` : ''}
                 
                 ${result.note ? `
                 <div class="p-3 bg-blue-50 border border-blue-200 rounded">
