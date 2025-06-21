@@ -28,12 +28,14 @@ Aplikasi web yang aman untuk mendemonstrasikan verifikasi integritas file menggu
 - Generasi HMAC-SHA256 otomatis untuk file yang diunggah
 - Penyimpanan aman file dan HMAC yang sesuai
 - Penamaan file unik untuk mencegah konflik
+  ![upload-file-generate](img/home-upload.png)
 
 ### **Quick Integrity Check (Pemeriksaan Cepat)**
 
 - **Deteksi Otomatis**: Sistem otomatis mencari file yang cocok berdasarkan konten
 - **Deteksi File Dimodifikasi**: Logika cerdas untuk mendeteksi file yang telah diubah
 - **Multi-Level Detection**: Berbagai tingkat deteksi untuk akurasi maksimal
+  ![integrity-check](img/home-verif.png)
 
 ### **Manajemen File**
 
@@ -42,12 +44,14 @@ Aplikasi web yang aman untuk mendemonstrasikan verifikasi integritas file menggu
 - Salin nilai HMAC ke clipboard
 - Hapus file individual atau reset semua file
 - Daftar file responsif dengan UI modern
+  ![data-management](img/home-management.png)
 
 ### **Simulasi Tampering Edukasi**
 
 - Simulasi perusakan file untuk tujuan edukasi
 - Demonstrasi bagaimana HMAC mendeteksi modifikasi file
 - Sempurna untuk mempelajari konsep integritas data
+  ![temper](img/home-management.png)
 
 ---
 
@@ -190,12 +194,15 @@ http://localhost:5000
 
 ### Interface Web
 
+![home](img/home.png)
+
 #### **Upload File**
 
 1. Pilih file `.txt` menggunakan file picker atau drag & drop
 2. Masukkan kunci rahasia (ingat ini untuk verifikasi!)
 3. Klik "Upload & Generate HMAC"
 4. Sistem akan menghasilkan dan menyimpan HMAC secara otomatis
+   ![upload-file](img/upload-file.png)
 
 #### **Quick Integrity Check**
 
@@ -204,6 +211,7 @@ http://localhost:5000
 3. Klik "Quick Integrity Check"
 4. Sistem akan otomatis mencari dan membandingkan dengan database
 5. Lihat hasil deteksi yang detail
+   ![quick-check](img/u-check-integrity.png)
 
 #### **Download File**
 
@@ -212,10 +220,8 @@ http://localhost:5000
 - **Copy**: Salin nilai HMAC ke clipboard
 - **Tamper**: Simulasi modifikasi file (edukasi)
 - **Delete**: Hapus file individual dari server
-
-#### **Reset All Files**
-
-- Klik tombol "Reset All" untuk menghapus semua file dan reset database HMAC
+- **Reset All Files**: Klik tombol "Reset All" untuk menghapus semua file dan reset database HMAC
+  ![manager-data](img/homemanager-data.png)
 
 ---
 
@@ -226,6 +232,7 @@ http://localhost:5000
 - Fungsi hash kriptografi standar industri
 - Menggabungkan SHA-256 dengan autentikasi kunci rahasia
 - Menyediakan verifikasi integritas dan keaslian
+  ![hmac](img/HMACDiagram.jpg)
 
 ### **Perbandingan Waktu Konstan**
 
@@ -311,6 +318,8 @@ hmac.compare_digest(calculated_hmac, expected_hmac)
 4. Hasil: ✅ File integrity verified!
 ```
 
+![check-verif](img/u-check-verif.png)
+
 ### **Skenario 2: File Dimodifikasi**
 
 ```
@@ -321,6 +330,8 @@ hmac.compare_digest(calculated_hmac, expected_hmac)
 5. Hasil: ⚠️ File Modified! Same name but content changed.
 ```
 
+![check-modif](img/u-check-modif.png)
+
 ### **Skenario 3: File Baru**
 
 ```
@@ -328,5 +339,7 @@ hmac.compare_digest(calculated_hmac, expected_hmac)
 2. Quick Integrity Check dengan file baru
 3. Hasil: 🔍 No matching file found in our database.
 ```
+
+![check-nomatch](img/u-check-nomatch.png)
 
 ---
