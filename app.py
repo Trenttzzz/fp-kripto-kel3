@@ -13,7 +13,26 @@ CORS(app)
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 HMAC_STORE_FILE = 'hmac_store.json'
-ALLOWED_EXTENSIONS = {'txt'}
+ALLOWED_EXTENSIONS = {
+    'txt',
+    'pdf',
+    'docx',
+    'xlsx',
+    'csv',
+    'png',
+    'jpg'
+    }
+
+ALLOWED_MIME_TYPES = {
+    'text/plain',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # .docx
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',        # .xlsx
+    'text/csv',
+    'image/png',
+    'image/jpeg'
+}
+
 PORT = 5000
 
 # Ensure upload directory exists
@@ -69,7 +88,7 @@ def upload_file():
             return jsonify({'error': 'No file selected'}), 400
         
         if not allowed_file(file.filename):
-            return jsonify({'error': 'Only .txt files are allowed'}), 400
+            return jsonify({'error': 'Only supported files are allowed'}), 400
         
         # Read file content
         file_content = file.read()
