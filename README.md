@@ -143,13 +143,52 @@ hmac-file-uploader/
 ├── app.py                 # Flask backend API
 ├── hmac_utils.py          # Fungsi kriptografi HMAC
 ├── requirements.txt       # Dependencies Python
-├── hmac_store.json        # Penyimpanan mapping file-ke-HMAC
-├── uploads/               # Direktori file yang diunggah
 ├── templates/
 │   └── index.html         # Interface web modern
 ├── static/
 │   └── script.js          # Logika JavaScript frontend
+├── .env                   # Environment variables
 └── README.md              # Dokumentasi ini
+
+MongoDB Cloud Database (fo-kripto-kel3):
+├── hmac_project           # Collection untuk metadata HMAC
+├── fs.files              # GridFS metadata untuk file storage
+└── fs.chunks             # GridFS file chunks (data file)
+```
+
+### Cloud File Storage
+- **GridFS**: File disimpan dalam MongoDB Atlas menggunakan GridFS
+- **Scalability**: Mendukung file hingga ukuran besar (>16MB)
+- **Reliability**: File tersimpan aman di cloud database
+- **No Local Storage**: Tidak ada dependency pada folder lokal
+- **Integrated**: Metadata dan file dalam database yang sama
+
+---
+
+## GridFS Cloud Storage
+
+### **Apa itu GridFS?**
+GridFS adalah sistem file yang dibangun di atas MongoDB untuk menyimpan dan mengambil file yang melebihi batas ukuran dokumen BSON 16 MB.
+
+### **Keuntungan GridFS:**
+- **Penyimpanan File Besar**: Dapat menyimpan file dengan ukuran hingga beberapa gigabyte
+- **Atomic Operations**: Operasi file dilakukan secara atomic
+- **Distributed Storage**: File disimpan terdistribusi dalam chunks
+- **Metadata Rich**: Setiap file memiliki metadata lengkap
+- **Cloud Native**: Terintegrasi penuh dengan MongoDB Atlas
+
+### **Cara Kerja GridFS:**
+1. **File Upload**: File dibagi menjadi chunks 255KB
+2. **Metadata Storage**: Informasi file disimpan di `fs.files`
+3. **Data Storage**: Chunk file disimpan di `fs.chunks`
+4. **HMAC Integration**: Nilai HMAC disimpan sebagai metadata file
+
+### **Struktur Database GridFS:**
+```
+hmac_project/
+├── file_records           # Collection untuk metadata HMAC aplikasi
+├── fs.files              # GridFS metadata (filename, size, upload_date, dll)
+└── fs.chunks             # GridFS data chunks (actual file content)
 ```
 
 ---
@@ -174,13 +213,27 @@ cd hmac-file-uploader
 pip install -r requirements.txt
 ```
 
-### 3. Jalankan Aplikasi
+### 3. Update .env File
+
+1. Buka atau buat file `.env` di environment kalian
+2. Buar isinya seperti ini (ganti sesuai dengan creds kalian):
+   ```
+   MONGODB_URI=mongodb+srv://yourusername:yourpassword@cluster0.xxxxx.mongodb.net/hmac_project?retryWrites=true&w=majority
+   
+   MONGODB_DATABASE=hmac_project
+   MONGODB_COLLECTION=file_records 
+   ```
+   - Ganti `yourusername` dengan username database mu
+   - Ganti `yourpassword` dengan password database mu
+   - Ganti `cluster0.xxxxx` dengan nama cluster database mu
+
+### 4. Jalankan Aplikasi
 
 ```bash
 python app.py
 ```
 
-### 4. Akses Interface Web
+### 5. Akses Interface Web
 
 Buka browser Anda dan navigasi ke:
 
@@ -249,11 +302,12 @@ hmac.compare_digest(calculated_hmac, expected_hmac)
 - Penanganan nama file yang aman
 - Sanitasi dan validasi input
 
-### **Penyimpanan File Unik**
+### **Penyimpanan File Cloud**
 
-- Generasi nama file berbasis UUID
-- Mencegah konflik penamaan file
-- Penanganan path file yang aman
+- **GridFS Integration**: File disimpan di MongoDB Atlas menggunakan GridFS
+- **No Local Dependencies**: Tidak memerlukan folder lokal untuk penyimpanan
+- **Scalable Storage**: Mendukung file besar dengan pembagian chunks otomatis
+- **Backup Integrated**: File ikut ter-backup dengan database MongoDB
 
 ---
 

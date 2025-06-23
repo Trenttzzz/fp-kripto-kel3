@@ -571,10 +571,14 @@ async function copyHmac(hmac) {
 
 // Add drag and drop functionality
 document.addEventListener('DOMContentLoaded', function() {
-    const fileInputs = ['fileInput', 'verifyFileInput'];
+    const fileInputs = ['fileInput', 'quickVerifyFileInput'];
     
     fileInputs.forEach(inputId => {
         const input = document.getElementById(inputId);
+        if (!input) {
+            console.warn(`Element with ID '${inputId}' not found`);
+            return;
+        }
         const container = input.parentElement;
         
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {

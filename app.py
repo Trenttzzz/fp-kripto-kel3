@@ -1,18 +1,24 @@
 import os
 import json
 import uuid
+import gridfs
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from hmac_utils import generate_hmac, verify_hmac
+from pymongo import MongoClient
+from dotenv import load_dotenv
+from io import BytesIO
+from bson import ObjectId
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
-UPLOAD_FOLDER = 'uploads'
-HMAC_STORE_FILE = 'hmac_store.json'
 ALLOWED_EXTENSIONS = {
     'txt',
     'pdf',
@@ -21,7 +27,7 @@ ALLOWED_EXTENSIONS = {
     'csv',
     'png',
     'jpg'
-    }
+}
 
 ALLOWED_MIME_TYPES = {
     'text/plain',
@@ -35,33 +41,103 @@ ALLOWED_MIME_TYPES = {
 
 PORT = 5000
 
-# Ensure upload directory exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# MongoDB Configuration
+MONGODB_URI = os.getenv('MONGODB_URI')
+MONGODB_DATABASE = os.getenv('MONGODB_DATABASE', 'fo-kripto-kel3')
+MONGODB_COLLECTION = os.getenv('MONGODB_COLLECTION', 'hmac_project')
 
-# Initialize HMAC store file if it doesn't exist
-if not os.path.exists(HMAC_STORE_FILE):
-    with open(HMAC_STORE_FILE, 'w') as f:
-        json.dump({}, f)
+# Initialize MongoDB connection
+try:
+    mongo_client = MongoClient(MONGODB_URI)
+    db = mongo_client[MONGODB_DATABASE]
+    collection = db[MONGODB_COLLECTION]
+    # Initialize GridFS for file storage
+    fs = gridfs.GridFS(db)
+    # Test connection
+    mongo_client.admin.command('ping')
+    print("✅ MongoDB connection successful!")
+    print("✅ GridFS initialized for cloud file storage!")
+except Exception as e:
+    print(f"❌ MongoDB connection failed: {e}")
+    print("Please check your MONGODB_URI in the .env file")
+    mongo_client = None
+    db = None
+    collection = None
+    fs = None
 
+# No need for local upload folder as we use GridFS cloud storage
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def load_hmac_store():
-    """Load HMAC store from JSON file."""
+def get_file_records():
+    """Get all file records from MongoDB."""
+    if collection is None:
+        return {}
     try:
-        with open(HMAC_STORE_FILE, 'r') as f:
-            return json.load(f)
-    except:
+        records = {}
+        for doc in collection.find():
+            # Convert MongoDB document to dictionary format
+            filename = doc['filename']
+            records[filename] = {
+                'original_filename': doc['original_filename'],
+                'hmac': doc['hmac'],
+                'upload_time': doc['upload_time'],
+                'file_size': doc['file_size']
+            }
+        return records
+    except Exception as e:
+        print(f"Error getting file records: {e}")
         return {}
 
 
-def save_hmac_store(store):
-    """Save HMAC store to JSON file."""
-    with open(HMAC_STORE_FILE, 'w') as f:
-        json.dump(store, f, indent=2)
+def save_file_record(filename, original_filename, hmac_value, file_size, file_id=None):
+    """Save a file record to MongoDB."""
+    if collection is None:
+        raise Exception("Database connection not available")
+    
+    try:
+        document = {
+            'filename': filename,
+            'original_filename': original_filename,
+            'hmac': hmac_value,
+            'upload_time': datetime.now().isoformat(),
+            'file_size': file_size,
+            'file_id': file_id  # GridFS file ID
+        }
+        collection.insert_one(document)
+        return True
+    except Exception as e:
+        print(f"Error saving file record: {e}")
+        raise
+
+
+def delete_file_record(filename):
+    """Delete a file record from MongoDB."""
+    if collection is None:
+        raise Exception("Database connection not available")
+    
+    try:
+        result = collection.delete_one({'filename': filename})
+        return result.deleted_count > 0
+    except Exception as e:
+        print(f"Error deleting file record: {e}")
+        raise
+
+
+def clear_all_records():
+    """Clear all file records from MongoDB."""
+    if collection is None:
+        raise Exception("Database connection not available")
+    
+    try:
+        result = collection.delete_many({})
+        return result.deleted_count
+    except Exception as e:
+        print(f"Error clearing records: {e}")
+        raise
 
 
 @app.route('/')
@@ -92,37 +168,40 @@ def upload_file():
         
         # Read file content
         file_content = file.read()
+        file.seek(0)  # Reset file pointer
         
         # Generate unique filename to avoid conflicts
         original_filename = secure_filename(file.filename)
         unique_id = str(uuid.uuid4())[:8]
         stored_filename = f"{unique_id}_{original_filename}"
-        file_path = os.path.join(UPLOAD_FOLDER, stored_filename)
-        
-        # Save file
-        with open(file_path, 'wb') as f:
-            f.write(file_content)
         
         # Generate HMAC
         hmac_value = generate_hmac(file_content, secret_key)
         
-        # Store HMAC information
-        hmac_store = load_hmac_store()
-        hmac_store[stored_filename] = {
-            'original_filename': original_filename,
-            'hmac': hmac_value,
-            'upload_time': datetime.now().isoformat(),
-            'file_size': len(file_content)
-        }
-        save_hmac_store(hmac_store)
+        # Store file in GridFS cloud storage
+        if fs is None:
+            return jsonify({'error': 'GridFS cloud storage not available'}), 500
+            
+        file_id = fs.put(
+            file_content,
+            filename=stored_filename,
+            original_name=original_filename,
+            content_type=file.content_type or 'application/octet-stream',
+            hmac=hmac_value,
+            upload_time=datetime.utcnow()
+        )
+        
+        # Store HMAC information in MongoDB with GridFS file ID
+        save_file_record(stored_filename, original_filename, hmac_value, len(file_content), str(file_id))
         
         return jsonify({
             'success': True,
-            'message': 'File uploaded successfully',
+            'message': 'File uploaded to cloud storage successfully!',
             'filename': stored_filename,
             'original_filename': original_filename,
             'hmac': hmac_value,
-            'file_size': len(file_content)
+            'file_size': len(file_content),
+            'file_id': str(file_id)
         })
         
     except Exception as e:
@@ -133,19 +212,18 @@ def upload_file():
 def list_files():
     """List all uploaded files with their HMAC information."""
     try:
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         files = []
         
-        for filename, info in hmac_store.items():
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            if os.path.exists(file_path):
-                files.append({
-                    'filename': filename,
-                    'original_filename': info['original_filename'],
-                    'hmac': info['hmac'],
-                    'upload_time': info['upload_time'],
-                    'file_size': info['file_size']
-                })
+        for filename, info in file_records.items():
+            # Since files are now stored in GridFS, we don't need to check local file existence
+            files.append({
+                'filename': filename,
+                'original_filename': info['original_filename'],
+                'hmac': info['hmac'],
+                'upload_time': info['upload_time'],
+                'file_size': info['file_size']
+            })
         
         return jsonify({'files': files})
         
@@ -155,19 +233,30 @@ def list_files():
 
 @app.route('/api/download/<filename>')
 def download_file(filename):
-    """Download file."""
+    """Download file from GridFS cloud storage."""
     try:
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        if fs is None:
+            return jsonify({'error': 'GridFS cloud storage not available'}), 500
+            
+        # Find file in GridFS
+        grid_file = fs.find_one({"filename": filename})
+        if grid_file is None:
+            return jsonify({'error': 'File not found in cloud storage'}), 404
         
-        if not os.path.exists(file_path):
-            return jsonify({'error': 'File not found'}), 404
+        # Create BytesIO object for Flask send_file
+        file_data = BytesIO(grid_file.read())
+        file_data.seek(0)
         
-        hmac_store = load_hmac_store()
-        if filename not in hmac_store:
-            return jsonify({'error': 'File information not found'}), 404
+        # Get original filename from GridFS metadata
+        original_name = getattr(grid_file, 'original_name', filename)
+        content_type = getattr(grid_file, 'content_type', 'application/octet-stream')
         
-        return send_file(file_path, as_attachment=True, 
-                        download_name=hmac_store[filename]['original_filename'])
+        return send_file(
+            file_data,
+            as_attachment=True,
+            download_name=original_name,
+            mimetype=content_type
+        )
         
     except Exception as e:
         return jsonify({'error': f'Download failed: {str(e)}'}), 500
@@ -177,55 +266,73 @@ def download_file(filename):
 def download_hmac(filename):
     """Download HMAC file."""
     try:
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
-        if filename not in hmac_store:
+        if filename not in file_records:
             return jsonify({'error': 'File not found'}), 404
         
-        # Create temporary HMAC file
-        hmac_content = f"File: {hmac_store[filename]['original_filename']}\n"
-        hmac_content += f"HMAC: {hmac_store[filename]['hmac']}\n"
-        hmac_content += f"Upload Time: {hmac_store[filename]['upload_time']}\n"
-        hmac_content += f"File Size: {hmac_store[filename]['file_size']} bytes\n"
+        # Create temporary HMAC file content
+        file_info = file_records[filename]
+        hmac_content = f"File: {file_info['original_filename']}\n"
+        hmac_content += f"HMAC: {file_info['hmac']}\n"
+        hmac_content += f"Upload Time: {file_info['upload_time']}\n"
+        hmac_content += f"File Size: {file_info['file_size']} bytes\n"
+        
+        # Create BytesIO object for the HMAC content
+        hmac_data = BytesIO(hmac_content.encode('utf-8'))
+        hmac_data.seek(0)
         
         hmac_filename = f"{filename}.hmac"
-        hmac_path = os.path.join(UPLOAD_FOLDER, hmac_filename)
         
-        with open(hmac_path, 'w') as f:
-            f.write(hmac_content)
-        
-        return send_file(hmac_path, as_attachment=True, download_name=hmac_filename)
+        return send_file(
+            hmac_data,
+            as_attachment=True,
+            download_name=hmac_filename,
+            mimetype='text/plain'
+        )
         
     except Exception as e:
         return jsonify({'error': f'HMAC download failed: {str(e)}'}), 500
 
 
-
 @app.route('/api/simulate-tamper/<filename>', methods=['POST'])
 def simulate_tamper(filename):
-    """Simulate file tampering for educational purposes."""
+    """Simulate file tampering for educational purposes using GridFS."""
     try:
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        if fs is None:
+            return jsonify({'error': 'GridFS cloud storage not available'}), 500
         
-        if not os.path.exists(file_path):
-            return jsonify({'error': 'File not found'}), 404
+        # Find file in GridFS
+        grid_file = fs.find_one({"filename": filename})
+        if grid_file is None:
+            return jsonify({'error': 'File not found in cloud storage'}), 404
         
         # Read original content
-        with open(file_path, 'r') as f:
-            content = f.read()
+        original_content = grid_file.read()
         
         # Add tampering text
-        tampered_content = content + "\n[TAMPERED] This file has been modified!"
+        tampered_content = original_content + b"\n[TAMPERED] This file has been modified!"
         
-        # Save tampered file
-        with open(file_path, 'w') as f:
-            f.write(tampered_content)
+        # Delete old file and create new tampered version
+        fs.delete(grid_file._id)
+        
+        # Store tampered file back to GridFS
+        new_file_id = fs.put(
+            tampered_content,
+            filename=filename,
+            original_name=getattr(grid_file, 'original_name', filename),
+            content_type=getattr(grid_file, 'content_type', 'application/octet-stream'),
+            hmac=getattr(grid_file, 'hmac', ''),
+            upload_time=datetime.utcnow(),
+            tampered=True  # Mark as tampered
+        )
         
         return jsonify({
             'success': True,
-            'message': 'File has been tampered with for educational purposes',
-            'original_size': len(content),
-            'tampered_size': len(tampered_content)
+            'message': 'File has been tampered with for educational purposes in cloud storage',
+            'original_size': len(original_content),
+            'tampered_size': len(tampered_content),
+            'new_file_id': str(new_file_id)
         })
         
     except Exception as e:
@@ -254,7 +361,7 @@ def quick_verify_file():
         original_filename = secure_filename(file.filename)
         
         # Load HMAC store
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
         # Calculate current HMAC first
         current_hmac = generate_hmac(file_content, secret_key)
@@ -264,7 +371,7 @@ def quick_verify_file():
         filename_match = None
         similar_files = []
         
-        for stored_filename, info in hmac_store.items():
+        for stored_filename, info in file_records.items():
             # First priority: Check if HMAC matches (content is identical)
             if info['hmac'] == current_hmac:
                 found_match = {
@@ -377,27 +484,27 @@ def quick_verify_file():
 
 @app.route('/api/delete/<filename>', methods=['DELETE'])
 def delete_file(filename):
-    """Delete a specific uploaded file and its HMAC record."""
+    """Delete a specific uploaded file from GridFS and its HMAC record."""
     try:
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
         # Check if file exists in store
-        if filename not in hmac_store:
+        if filename not in file_records:
             return jsonify({'error': 'File not found in records'}), 404
         
-        # Remove physical file if exists
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # Remove physical file from GridFS if exists
+        if fs is not None:
+            grid_file = fs.find_one({"filename": filename})
+            if grid_file:
+                fs.delete(grid_file._id)
         
-        # Remove from HMAC store
-        original_filename = hmac_store[filename]['original_filename']
-        del hmac_store[filename]
-        save_hmac_store(hmac_store)
+        # Remove from database
+        original_filename = file_records[filename]['original_filename']
+        delete_file_record(filename)
         
         return jsonify({
             'success': True,
-            'message': f'File "{original_filename}" deleted successfully',
+            'message': f'File "{original_filename}" deleted successfully from cloud storage',
             'deleted_filename': filename
         })
         
@@ -407,36 +514,29 @@ def delete_file(filename):
 
 @app.route('/api/reset-all', methods=['POST'])
 def reset_all_files():
-    """Reset all uploaded files and HMAC store."""
+    """Reset all uploaded files from GridFS and HMAC store."""
     try:
         deleted_count = 0
         
         # Load current store to get file list
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
-        # Delete all physical files
-        for filename in hmac_store.keys():
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                deleted_count += 1
+        # Delete all physical files from GridFS
+        if fs is not None:
+            for filename in file_records.keys():
+                grid_file = fs.find_one({"filename": filename})
+                if grid_file:
+                    fs.delete(grid_file._id)
+                    deleted_count += 1
         
-        # Clear HMAC store
-        save_hmac_store({})
-        
-        # Also clean up any orphaned files in uploads folder
-        if os.path.exists(UPLOAD_FOLDER):
-            for file in os.listdir(UPLOAD_FOLDER):
-                if file.endswith('.txt') or file.endswith('.hmac'):
-                    file_path = os.path.join(UPLOAD_FOLDER, file)
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-                        deleted_count += 1
+        # Clear database records
+        deleted_records = clear_all_records()
         
         return jsonify({
             'success': True,
-            'message': f'All files reset successfully. Deleted {deleted_count} files.',
-            'deleted_count': deleted_count
+            'message': f'All files reset successfully. Deleted {deleted_count} files from cloud storage and {deleted_records} database records.',
+            'deleted_count': deleted_count,
+            'deleted_records': deleted_records
         })
         
     except Exception as e:
@@ -445,7 +545,8 @@ def reset_all_files():
 
 if __name__ == '__main__':
     print("🚀 HMAC File Uploader Server Starting...")
-    print("📁 Upload folder:", UPLOAD_FOLDER)
-    print("🔒 HMAC store file:", HMAC_STORE_FILE)
+    print("☁️ Using GridFS Cloud Storage for files")
+    print("🗄️ Database:", MONGODB_DATABASE)
+    print("📋 Collection:", MONGODB_COLLECTION)
     print(f"🌐 Server will be available at: http://localhost:{PORT}")
     app.run(debug=True, host='0.0.0.0', port=PORT)
