@@ -174,13 +174,27 @@ cd hmac-file-uploader
 pip install -r requirements.txt
 ```
 
-### 3. Jalankan Aplikasi
+### 3. Update .env File
+
+1. Open the `.env` file in your project
+2. Replace the MONGODB_URI with your actual connection string:
+   ```
+   MONGODB_URI=mongodb+srv://yourusername:yourpassword@cluster0.xxxxx.mongodb.net/hmac_uploader?retryWrites=true&w=majority
+   
+   MONGODB_DATABASE=hmac_uploader
+    MONGODB_COLLECTION=file_records 
+   ```
+   - Replace `yourusername` with your database username
+   - Replace `yourpassword` with your database password
+   - Replace `cluster0.xxxxx` with your actual cluster name
+
+### 4. Jalankan Aplikasi
 
 ```bash
 python app.py
 ```
 
-### 4. Akses Interface Web
+### 5. Akses Interface Web
 
 Buka browser Anda dan navigasi ke:
 

@@ -6,13 +6,17 @@ from flask import Flask, request, jsonify, render_template, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from hmac_utils import generate_hmac, verify_hmac
+from pymongo import MongoClient
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
-HMAC_STORE_FILE = 'hmac_store.json'
 ALLOWED_EXTENSIONS = {
     'txt',
     'pdf',
@@ -35,13 +39,28 @@ ALLOWED_MIME_TYPES = {
 
 PORT = 5000
 
+# MongoDB Configuration
+MONGODB_URI = os.getenv('MONGODB_URI')
+MONGODB_DATABASE = os.getenv('MONGODB_DATABASE', 'hmac_uploader')
+MONGODB_COLLECTION = os.getenv('MONGODB_COLLECTION', 'file_records')
+
+# Initialize MongoDB connection
+try:
+    mongo_client = MongoClient(MONGODB_URI)
+    db = mongo_client[MONGODB_DATABASE]
+    collection = db[MONGODB_COLLECTION]
+    # Test connection
+    mongo_client.admin.command('ping')
+    print("✅ MongoDB connection successful!")
+except Exception as e:
+    print(f"❌ MongoDB connection failed: {e}")
+    print("Please check your MONGODB_URI in the .env file")
+    mongo_client = None
+    db = None
+    collection = None
+
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Initialize HMAC store file if it doesn't exist
-if not os.path.exists(HMAC_STORE_FILE):
-    with open(HMAC_STORE_FILE, 'w') as f:
-        json.dump({}, f)
 
 
 def allowed_file(filename):
@@ -49,19 +68,71 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def load_hmac_store():
-    """Load HMAC store from JSON file."""
+def get_file_records():
+    """Get all file records from MongoDB."""
+    if collection is None:
+        return {}
     try:
-        with open(HMAC_STORE_FILE, 'r') as f:
-            return json.load(f)
-    except:
+        records = {}
+        for doc in collection.find():
+            # Convert MongoDB document to dictionary format
+            filename = doc['filename']
+            records[filename] = {
+                'original_filename': doc['original_filename'],
+                'hmac': doc['hmac'],
+                'upload_time': doc['upload_time'],
+                'file_size': doc['file_size']
+            }
+        return records
+    except Exception as e:
+        print(f"Error getting file records: {e}")
         return {}
 
 
-def save_hmac_store(store):
-    """Save HMAC store to JSON file."""
-    with open(HMAC_STORE_FILE, 'w') as f:
-        json.dump(store, f, indent=2)
+def save_file_record(filename, original_filename, hmac_value, file_size):
+    """Save a file record to MongoDB."""
+    if collection is None:
+        raise Exception("Database connection not available")
+    
+    try:
+        document = {
+            'filename': filename,
+            'original_filename': original_filename,
+            'hmac': hmac_value,
+            'upload_time': datetime.now().isoformat(),
+            'file_size': file_size
+        }
+        collection.insert_one(document)
+        return True
+    except Exception as e:
+        print(f"Error saving file record: {e}")
+        raise
+
+
+def delete_file_record(filename):
+    """Delete a file record from MongoDB."""
+    if collection is None:
+        raise Exception("Database connection not available")
+    
+    try:
+        result = collection.delete_one({'filename': filename})
+        return result.deleted_count > 0
+    except Exception as e:
+        print(f"Error deleting file record: {e}")
+        raise
+
+
+def clear_all_records():
+    """Clear all file records from MongoDB."""
+    if collection is None:
+        raise Exception("Database connection not available")
+    
+    try:
+        result = collection.delete_many({})
+        return result.deleted_count
+    except Exception as e:
+        print(f"Error clearing records: {e}")
+        raise
 
 
 @app.route('/')
@@ -106,15 +177,8 @@ def upload_file():
         # Generate HMAC
         hmac_value = generate_hmac(file_content, secret_key)
         
-        # Store HMAC information
-        hmac_store = load_hmac_store()
-        hmac_store[stored_filename] = {
-            'original_filename': original_filename,
-            'hmac': hmac_value,
-            'upload_time': datetime.now().isoformat(),
-            'file_size': len(file_content)
-        }
-        save_hmac_store(hmac_store)
+        # Store HMAC information in MongoDB
+        save_file_record(stored_filename, original_filename, hmac_value, len(file_content))
         
         return jsonify({
             'success': True,
@@ -133,10 +197,10 @@ def upload_file():
 def list_files():
     """List all uploaded files with their HMAC information."""
     try:
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         files = []
         
-        for filename, info in hmac_store.items():
+        for filename, info in file_records.items():
             file_path = os.path.join(UPLOAD_FOLDER, filename)
             if os.path.exists(file_path):
                 files.append({
@@ -162,12 +226,12 @@ def download_file(filename):
         if not os.path.exists(file_path):
             return jsonify({'error': 'File not found'}), 404
         
-        hmac_store = load_hmac_store()
-        if filename not in hmac_store:
+        file_records = get_file_records()
+        if filename not in file_records:
             return jsonify({'error': 'File information not found'}), 404
         
         return send_file(file_path, as_attachment=True, 
-                        download_name=hmac_store[filename]['original_filename'])
+                        download_name=file_records[filename]['original_filename'])
         
     except Exception as e:
         return jsonify({'error': f'Download failed: {str(e)}'}), 500
@@ -177,16 +241,17 @@ def download_file(filename):
 def download_hmac(filename):
     """Download HMAC file."""
     try:
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
-        if filename not in hmac_store:
+        if filename not in file_records:
             return jsonify({'error': 'File not found'}), 404
         
         # Create temporary HMAC file
-        hmac_content = f"File: {hmac_store[filename]['original_filename']}\n"
-        hmac_content += f"HMAC: {hmac_store[filename]['hmac']}\n"
-        hmac_content += f"Upload Time: {hmac_store[filename]['upload_time']}\n"
-        hmac_content += f"File Size: {hmac_store[filename]['file_size']} bytes\n"
+        file_info = file_records[filename]
+        hmac_content = f"File: {file_info['original_filename']}\n"
+        hmac_content += f"HMAC: {file_info['hmac']}\n"
+        hmac_content += f"Upload Time: {file_info['upload_time']}\n"
+        hmac_content += f"File Size: {file_info['file_size']} bytes\n"
         
         hmac_filename = f"{filename}.hmac"
         hmac_path = os.path.join(UPLOAD_FOLDER, hmac_filename)
@@ -254,7 +319,7 @@ def quick_verify_file():
         original_filename = secure_filename(file.filename)
         
         # Load HMAC store
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
         # Calculate current HMAC first
         current_hmac = generate_hmac(file_content, secret_key)
@@ -264,7 +329,7 @@ def quick_verify_file():
         filename_match = None
         similar_files = []
         
-        for stored_filename, info in hmac_store.items():
+        for stored_filename, info in file_records.items():
             # First priority: Check if HMAC matches (content is identical)
             if info['hmac'] == current_hmac:
                 found_match = {
@@ -380,20 +445,19 @@ def delete_file(filename):
     """Delete a specific uploaded file and its HMAC record."""
     try:
         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
         # Check if file exists in store
-        if filename not in hmac_store:
+        if filename not in file_records:
             return jsonify({'error': 'File not found in records'}), 404
         
         # Remove physical file if exists
         if os.path.exists(file_path):
             os.remove(file_path)
         
-        # Remove from HMAC store
-        original_filename = hmac_store[filename]['original_filename']
-        del hmac_store[filename]
-        save_hmac_store(hmac_store)
+        # Remove from database
+        original_filename = file_records[filename]['original_filename']
+        delete_file_record(filename)
         
         return jsonify({
             'success': True,
@@ -412,17 +476,17 @@ def reset_all_files():
         deleted_count = 0
         
         # Load current store to get file list
-        hmac_store = load_hmac_store()
+        file_records = get_file_records()
         
         # Delete all physical files
-        for filename in hmac_store.keys():
+        for filename in file_records.keys():
             file_path = os.path.join(UPLOAD_FOLDER, filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
                 deleted_count += 1
         
-        # Clear HMAC store
-        save_hmac_store({})
+        # Clear database records
+        deleted_records = clear_all_records()
         
         # Also clean up any orphaned files in uploads folder
         if os.path.exists(UPLOAD_FOLDER):
@@ -435,8 +499,9 @@ def reset_all_files():
         
         return jsonify({
             'success': True,
-            'message': f'All files reset successfully. Deleted {deleted_count} files.',
-            'deleted_count': deleted_count
+            'message': f'All files reset successfully. Deleted {deleted_count} files and {deleted_records} database records.',
+            'deleted_count': deleted_count,
+            'deleted_records': deleted_records
         })
         
     except Exception as e:
@@ -446,6 +511,7 @@ def reset_all_files():
 if __name__ == '__main__':
     print("🚀 HMAC File Uploader Server Starting...")
     print("📁 Upload folder:", UPLOAD_FOLDER)
-    print("🔒 HMAC store file:", HMAC_STORE_FILE)
+    print("�️ Database:", MONGODB_DATABASE)
+    print("📋 Collection:", MONGODB_COLLECTION)
     print(f"🌐 Server will be available at: http://localhost:{PORT}")
     app.run(debug=True, host='0.0.0.0', port=PORT)
