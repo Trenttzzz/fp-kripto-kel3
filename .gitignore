@@ -15,3 +15,6 @@ hmac_store.json
 *.csv
 .fp-kripto
 uploads/
+.fpkripto
+**/__pycache__/
+*/__pycache__/
