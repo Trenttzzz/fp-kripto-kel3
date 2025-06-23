@@ -19,3 +19,5 @@ uploads/
 **/__pycache__/
 */__pycache__/
 .env
+app_backup.py
+app_gridfs.py
